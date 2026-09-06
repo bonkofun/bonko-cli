@@ -12,7 +12,7 @@ Read [DEVELOPMENT.md](../../../DEVELOPMENT.md), especially checks, lifecycle, as
 - Check manifest metadata, declared assets/capabilities, real code and media attribution, and the accessible reveal name in `test.json` for interactive templates.
 - Confirm supplied text, photo and crop reach both interactive and static presentations. Check cleanup, pause, replay, natural completion and reduced-motion handling against the protocol.
 - Look for unsupported imports, remote resources, unsafe text insertion or fabricated SDK interfaces. Fix source and metadata; never weaken the checker, copy SDK internals, or replace the authored static view with a generic fallback.
-- Preserve the pinned CLI version. If it is unavailable, report the exact prerequisite; do not silently rewrite `bonko.json`. Do not change template version merely to evade a packaging conflict.
+- Preserve the recorded project CLI version. The active CLI may accept explicitly compatible historical versions. If it reports an unsupported version, use the recorded release or report the exact prerequisite; do not silently rewrite `bonko.json`. Do not change template version merely to evade a packaging conflict.
 
 ## Run the actual checks
 

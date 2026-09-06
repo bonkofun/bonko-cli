@@ -10,6 +10,9 @@ export const toolRoot = fileURLToPath(new URL('../', import.meta.url));
 export const packageInfo = JSON.parse(
   await readFile(path.join(toolRoot, 'package.json'), 'utf8'),
 ) as { version: string; name: string };
+// Reviewed against the same v3 protocol, SDK and template dependency versions.
+// Extend only after compatibility verification; never infer support for future releases.
+const compatibleProjectVersions = new Set(['0.1.0', '0.1.1', '0.1.2', '0.1.3']);
 export type Project = { root: string; slug: string };
 
 export async function findProject(start = process.cwd()): Promise<Project> {
@@ -42,9 +45,12 @@ export async function findProject(start = process.cwd()): Promise<Project> {
     ) {
       throw new Error(`Invalid project configuration: ${path.join(root, 'bonko.json')}`);
     }
-    if (config.cliVersion !== packageInfo.version) {
+    if (
+      config.cliVersion !== packageInfo.version &&
+      !compatibleProjectVersions.has(config.cliVersion)
+    ) {
       throw new Error(
-        `This project requires pinned Bonko CLI ${config.cliVersion}; running ${packageInfo.version}. Run bonko use ${config.cliVersion} if it is installed. Otherwise install that version from https://github.com/bonkofun/bonko-cli/releases/tag/v${config.cliVersion}.`,
+        `This project pins Bonko CLI ${config.cliVersion}, which is not supported by running CLI ${packageInfo.version}. Run bonko use ${config.cliVersion} if it is installed. Otherwise install that version from https://github.com/bonkofun/bonko-cli/releases/tag/v${config.cliVersion}.`,
       );
     }
     let manifestText: string;

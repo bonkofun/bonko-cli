@@ -74,7 +74,7 @@ Checks the latest stable GitHub release and upgrades the installation used by th
 
 Requires network access, npm, curl and write access to the installation. System installations may require the same privileges used during installation; the command does not invoke sudo automatically. Workspace checkouts cannot upgrade a global installation. Previous versions remain installed for `bonko use <version>`.
 
-Existing projects retain their `bonko.json` version pin and files, including skills. Upgrade does not migrate projects. If an existing project requests its pinned version, select it with `bonko use <version>`; use the upgraded CLI when creating new projects.
+Existing projects retain their `bonko.json` version pin and files, including skills. After upgrading, run `bonko dev` in the existing project: this CLI accepts projects created with 0.1.0–0.1.3 as well as its own version. Compatible projects use the active CLI and its updated Studio without editing configuration or installing the older CLI. Compatibility is explicitly reviewed, not inferred from a shared major/minor number. Unknown or unsupported versions still require `bonko use <version>` (install that release first if missing).
 
 ### Upgrading older CLI versions
 
@@ -106,7 +106,7 @@ birthday-card/
   dist/              Verified delivery packages
 ```
 
-Commands also work from project subdirectories. Builds use the CLI's fixed dependencies, not project Vite configuration or environment files. `bonko.json` pins the CLI version. Use `bonko use <version>` to select an installed version, or install the missing release first. Project pins are never silently rewritten. Editor paths refer to the local CLI installation and may need updating when moving a project to another computer; CLI builds resolve dependencies independently.
+Commands also work from project subdirectories. Builds use the CLI's fixed dependencies, not project Vite configuration or environment files. `bonko.json` records the project CLI version; the active CLI accepts its own version and explicitly supported historical versions for dev/build/check/pack. For exact-version execution, use `bonko use <version>` to select an installed version, or install the missing release first. Project pins are never silently rewritten. Editor paths refer to the local CLI installation and may need updating when moving a project to another computer; CLI builds resolve dependencies independently.
 
 Templates may import `react`, `react/jsx-runtime`, `react-dom/client`, `motion/react`, `@bonko/template-sdk/runtime-client`, and relative files inside `src/`. Use native DOM/CSS, declared Canvas/WebGL capabilities, and SDK-managed short audio. Every template must support a complete static state, pause, cleanup, reduced motion and keyboard interaction.
 

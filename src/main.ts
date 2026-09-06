@@ -103,7 +103,7 @@ export async function main(args: string[]) {
     const result = await upgrade(toolRoot, process.argv[1], packageInfo.version);
     console.log(
       result.upgraded
-        ? `Upgraded to Bonko ${result.version}. Existing projects keep their pinned CLI version; use bonko use <version> when needed.`
+        ? `Upgraded to Bonko ${result.version}. Compatible existing projects run directly with this CLI; project pins are preserved. Use bonko use <version> only for an unsupported project version.`
         : `Bonko ${result.version} is already current or newer than the latest release (${result.latestVersion}).`,
     );
     return;
