@@ -3,7 +3,8 @@ const implementation = await readFile(new URL('./install.mjs', import.meta.url),
 const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const baseIndex = process.argv.indexOf('--base-url');
 const releaseBase = baseIndex === -1 ? '' : process.argv[baseIndex + 1];
-if (baseIndex !== -1 && (!releaseBase || new URL(releaseBase).protocol !== 'https:')) throw new Error('--base-url requires an HTTPS URL');
+if (baseIndex !== -1 && (!releaseBase || new URL(releaseBase).protocol !== 'https:'))
+  throw new Error('--base-url requires an HTTPS URL');
 const script = `#!/bin/sh
 # Bonko installer: parse the complete function before running a piped script.
 bonko_install() {

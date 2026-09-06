@@ -9,3 +9,12 @@
 - Do not merge the PR, push directly to `main`, rewrite shared history, or create/push release tags unless the user explicitly requests that action.
 - Use the repository-local Git author identity and focused Conventional Commit messages.
 - Keep repository documentation in English.
+
+## Engineering boundaries
+
+- Read `docs/ARCHITECTURE.md` before changing module or dependency boundaries and `docs/PROTOCOL.md` before template changes.
+- Keep core code in strict TypeScript and installer/release JavaScript under checked JSDoc. Do not suppress type errors or weaken SDK validators.
+- Use `npm run verify` and `git diff --check` before delivery; report skipped checks accurately. Preserve generated installer reproducibility.
+- Keep all documentation in English and comments focused on invariants and lifecycle decisions.
+- The project skills live in `.agents/skills/`; apply their relevant guidance within the user's authorized scope. Next.js-only rules do not apply to the Vite Studio.
+- Update an existing PR's title and body to describe its complete current diff, including behavior and validation.

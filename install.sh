@@ -21,47 +21,178 @@ bonko_install() {
   fi
   node --input-type=module - "$@" <<'BONKO_INSTALL_JS'
 import { spawn } from 'node:child_process';
-import { access, lstat, stat as fsStat, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import {
+  access,
+  lstat,
+  stat as fsStat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { homedir } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import path from 'node:path';
 
-export async function command(file, args, capture = false) {
+/** @param {unknown} error */
+function codeOf(error) {
+  return error instanceof Error && 'code' in error ? error.code : undefined;
+}
+
+/** @param {string} lock @param {boolean} recover */
+async function acquireLock(lock, recover) {
+  try {
+    await mkdir(lock);
+  } catch (error) {
+    if (codeOf(error) !== 'EEXIST') throw error;
+    if (!recover)
+      throw new Error(
+        `Installation lock exists: ${lock}. If interrupted, retry with --recover-lock; active installers will not be replaced.`,
+      );
+    // Serialize explicit recovery so two recoverers cannot remove a new lock.
+    const recovery = `${lock}-recovery`;
+    await mkdir(recovery).catch(() => {
+      throw new Error(`Lock recovery already active: ${recovery}`);
+    });
+    try {
+      const info = await lstat(lock);
+      if (!info.isDirectory() || info.isSymbolicLink())
+        throw new Error('Refusing linked or invalid installation lock.');
+      const owner = JSON.parse(await readFile(path.join(lock, 'owner.json'), 'utf8'));
+      if (owner.hostname !== hostname() || !Number.isSafeInteger(owner.pid) || owner.pid <= 0)
+        throw new Error('Unknown lock owner; inspect the lock manually.');
+      try {
+        process.kill(owner.pid, 0);
+        throw new Error('An installer is still active; wait for it to finish.');
+      } catch (error) {
+        if (codeOf(error) !== 'ESRCH') throw error;
+      }
+      await rm(lock, { recursive: true });
+      await mkdir(lock);
+    } finally {
+      await rm(recovery, { recursive: true, force: true });
+    }
+  }
+  try {
+    await writeFile(
+      path.join(lock, 'owner.json'),
+      JSON.stringify({ pid: process.pid, hostname: hostname() }),
+      { flag: 'wx' },
+    );
+  } catch (error) {
+    await rm(lock, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+/**
+ * Run an installer subprocess without a shell. Cancellation reaches npm/curl,
+ * so staging cleanup does not race a child that is still writing files.
+ * @param {string} file
+ * @param {string[]} args
+ * @param {boolean} capture
+ * @param {AbortSignal | undefined} signal
+ * @returns {Promise<string>}
+ */
+export async function command(file, args, capture = false, signal = undefined) {
   return new Promise((resolve, reject) => {
-    const child = spawn(file, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '', stderr = '';
-    child.stdout.on('data', data => { if (capture) stdout += data; else process.stderr.write(data); });
-    child.stderr.on('data', data => { if (capture) stderr += data; else process.stderr.write(data); });
-    child.once('error', reject);
-    child.once('exit', code => code === 0 ? resolve(stdout.trim()) : reject(new Error(`${path.basename(file)} failed (${code}). ${stderr.trim()}`)));
+    const child = spawn(file, args, { stdio: ['ignore', 'pipe', 'pipe'], signal });
+    let stdout = '',
+      stderr = '';
+    child.stdout.on('data', (data) => {
+      if (capture) stdout += data;
+      else process.stderr.write(data);
+    });
+    child.stderr.on('data', (data) => {
+      if (capture) stderr += data;
+      else process.stderr.write(data);
+    });
+    /** @type {Error | undefined} */
+    let failure;
+    child.once('error', (error) => {
+      failure = error;
+    });
+    child.once('close', (code) =>
+      failure
+        ? reject(failure)
+        : code === 0
+          ? resolve(stdout.trim())
+          : reject(new Error(`${path.basename(file)} failed (${code}). ${stderr.trim()}`)),
+    );
   });
 }
+/** @param {string} folder */
 async function realDirectory(folder) {
   const parent = path.dirname(folder);
   if (parent !== folder) {
-    try { const parentStat = await fsStat(parent); if (!parentStat.isDirectory()) throw new Error(`Expected a directory: ${parent}`); }
-    catch (error) { if (error.code !== 'ENOENT') throw error; await realDirectory(parent); }
+    try {
+      const parentStat = await fsStat(parent);
+      if (!parentStat.isDirectory()) throw new Error(`Expected a directory: ${parent}`);
+    } catch (error) {
+      if (codeOf(error) !== 'ENOENT') throw error;
+      await realDirectory(parent);
+    }
   }
-  await mkdir(folder).catch(error => { if (error.code !== 'EEXIST') throw error; });
+  await mkdir(folder).catch((error) => {
+    if (error.code !== 'EEXIST') throw error;
+  });
   const stat = await lstat(folder);
-  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`Refusing linked or non-directory installation target: ${folder}`);
+  if (!stat.isDirectory() || stat.isSymbolicLink())
+    throw new Error(`Refusing linked or non-directory installation target: ${folder}`);
 }
+/** @param {string[]} args */
 export async function install(args, releaseVersion = '0.1.0', releaseBase = '') {
+  /** @type {Record<string, string>} */
   const values = {};
+  let recoverLock = false;
   for (let i = 0; i < args.length; i++) {
-    if (!['--prefix', '--bin-dir', '--archive', '--sha256', '--base-url'].includes(args[i]) || !args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`Unknown or incomplete installer option: ${args[i]}`);
+    if (args[i] === '--recover-lock') {
+      recoverLock = true;
+      continue;
+    }
+    if (
+      !['--prefix', '--bin-dir', '--archive', '--sha256', '--base-url'].includes(args[i]) ||
+      !args[i + 1] ||
+      args[i + 1].startsWith('--')
+    )
+      throw new Error(`Unknown or incomplete installer option: ${args[i]}`);
     values[args[i]] = args[++i];
   }
   const rootUser = typeof process.getuid === 'function' && process.getuid() === 0;
-  const prefix = path.resolve(values['--prefix'] ?? process.env.BONKO_INSTALL_DIR ?? (rootUser ? '/usr/local/share/bonko' : path.join(homedir(), '.bonko')));
-  const binDir = path.resolve(values['--bin-dir'] ?? (values['--prefix'] || process.env.BONKO_INSTALL_DIR || !rootUser ? path.join(prefix, 'bin') : '/usr/local/bin'));
+  const prefix = path.resolve(
+    values['--prefix'] ??
+      process.env.BONKO_INSTALL_DIR ??
+      (rootUser ? '/usr/local/share/bonko' : path.join(homedir(), '.bonko')),
+  );
+  const binDir = path.resolve(
+    values['--bin-dir'] ??
+      (values['--prefix'] || process.env.BONKO_INSTALL_DIR || !rootUser
+        ? path.join(prefix, 'bin')
+        : '/usr/local/bin'),
+  );
   const base = values['--base-url'] ?? process.env.BONKO_RELEASE_BASE_URL ?? releaseBase;
-  if (!values['--archive'] && !base) throw new Error('No release endpoint configured. Use --base-url https://your-release-host/v' + releaseVersion + ' or install a local release with --archive <file> --sha256 <digest>.');
-  if (!values['--archive'] && new URL(base).protocol !== 'https:') throw new Error('Release downloads require HTTPS.');
-  if (values['--archive'] && !/^[a-f0-9]{64}$/.test(values['--sha256'] ?? '')) throw new Error('A local archive requires its --sha256 digest.');
+  if (!values['--archive'] && !base)
+    throw new Error(
+      'No release endpoint configured. Use --base-url https://your-release-host/v' +
+        releaseVersion +
+        ' or install a local release with --archive <file> --sha256 <digest>.',
+    );
+  if (!values['--archive'] && new URL(base).protocol !== 'https:')
+    throw new Error('Release downloads require HTTPS.');
+  if (values['--archive'] && !/^[a-f0-9]{64}$/.test(values['--sha256'] ?? ''))
+    throw new Error('A local archive requires its --sha256 digest.');
   await realDirectory(prefix);
   const lock = path.join(prefix, '.install-lock');
-  await mkdir(lock).catch(error => { if (error.code === 'EEXIST') throw new Error(`Another installation is active. If it was interrupted, remove ${lock} and retry.`); throw error; });
+  await acquireLock(lock, recoverLock);
+  const controller = new AbortController();
+  const interrupt = () =>
+    controller.abort(new Error('Installation interrupted; the previous command remains active.'));
+  process.once('SIGINT', interrupt);
+  process.once('SIGTERM', interrupt);
   let staging;
   try {
     await realDirectory(binDir);
@@ -69,55 +200,135 @@ export async function install(args, releaseVersion = '0.1.0', releaseBase = '') 
     const entry = path.join(binDir, 'bonko');
     try {
       const stat = await lstat(entry);
-      if (!stat.isSymbolicLink()) throw new Error(`Refusing to replace an existing command: ${entry}`);
-      const { readlink } = await import('node:fs/promises');
-      const existing = path.resolve(binDir, await readlink(entry));
-      const relative = path.relative(path.join(prefix, 'versions'), existing);
-      if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error(`Refusing to replace an unrelated command: ${entry}`);
-    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      if (!stat.isSymbolicLink())
+        throw new Error(`Refusing to replace an existing command: ${entry}`);
+      const existing = await realpath(entry).catch(() => {
+        throw new Error(`Refusing an unreadable command symlink: ${entry}`);
+      });
+      const relative = path.relative(await realpath(path.join(prefix, 'versions')), existing);
+      if (relative.startsWith('..') || path.isAbsolute(relative))
+        throw new Error(`Refusing to replace an unrelated command: ${entry}`);
+    } catch (error) {
+      if (codeOf(error) !== 'ENOENT') throw error;
+    }
     staging = await mkdtemp(path.join(prefix, '.install-'));
-    let archive = values['--archive'] ? path.resolve(values['--archive']) : path.join(staging, 'bonko.tgz');
+    const archive = values['--archive']
+      ? path.resolve(values['--archive'])
+      : path.join(staging, 'bonko.tgz');
     let digest = values['--sha256'];
     if (!values['--archive']) {
       const url = `${base.replace(/\/$/, '')}/bonko-cli-${releaseVersion}.tgz`;
       const checksumFile = path.join(staging, 'checksum');
-      const download = (url, output) => command('curl', ['--fail', '--silent', '--show-error', '--location', '--proto', '=https', '--proto-redir', '=https', '--tlsv1.2', '--retry', '2', '--connect-timeout', '20', '--max-time', '300', '--output', output, url]);
+      /** @param {string} url @param {string} output */
+      const download = (url, output) =>
+        command(
+          'curl',
+          [
+            '--fail',
+            '--silent',
+            '--show-error',
+            '--location',
+            '--proto',
+            '=https',
+            '--proto-redir',
+            '=https',
+            '--tlsv1.2',
+            '--retry',
+            '2',
+            '--connect-timeout',
+            '20',
+            '--max-time',
+            '300',
+            '--output',
+            output,
+            url,
+          ],
+          false,
+          controller.signal,
+        );
       await download(url + '.sha256', checksumFile);
       digest = (await readFile(checksumFile, 'utf8')).trim().split(/\s+/)[0];
       if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error('Invalid release checksum.');
       await download(url, archive);
     }
     const bytes = await readFile(archive);
-    if (createHash('sha256').update(bytes).digest('hex') !== digest) throw new Error('Release checksum mismatch. Nothing was activated.');
+    if (createHash('sha256').update(bytes).digest('hex') !== digest)
+      throw new Error('Release checksum mismatch. Nothing was activated.');
     const versionDir = path.join(prefix, 'versions', releaseVersion);
     let installed = false;
     try {
-      if ((await lstat(versionDir)).isSymbolicLink()) throw new Error('Refusing linked version directory.');
-      const marker = JSON.parse(await readFile(path.join(versionDir, '.bonko-install.json'), 'utf8'));
-      if (marker.digest !== digest) throw new Error('This version is already installed with different bytes. Publish a new version.');
+      if ((await lstat(versionDir)).isSymbolicLink())
+        throw new Error('Refusing linked version directory.');
+      const marker = JSON.parse(
+        await readFile(path.join(versionDir, '.bonko-install.json'), 'utf8'),
+      );
+      if (marker.digest !== digest)
+        throw new Error(
+          'This version is already installed with different bytes. Publish a new version.',
+        );
       installed = true;
-    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    } catch (error) {
+      if (codeOf(error) !== 'ENOENT') throw error;
+    }
     if (!installed) {
       const payload = path.join(staging, 'payload');
       await mkdir(payload);
-      process.stderr.write(`Installing Bonko ${releaseVersion} with Node ${process.versions.node}…\n`);
-      await command('npm', ['install', '--prefix', payload, '--ignore-scripts', '--omit=dev', '--no-audit', '--no-fund', '--package-lock=false', '--engine-strict', archive]);
+      process.stderr.write(
+        `Installing Bonko ${releaseVersion} with Node ${process.versions.node}…\n`,
+      );
+      await command(
+        'npm',
+        [
+          'install',
+          '--prefix',
+          payload,
+          '--ignore-scripts',
+          '--omit=dev',
+          '--no-audit',
+          '--no-fund',
+          '--package-lock=false',
+          '--engine-strict',
+          archive,
+        ],
+        false,
+        controller.signal,
+      );
       const executable = path.join(payload, 'node_modules/@bonkofun/cli/bin/bonko.mjs');
-      const result = JSON.parse(await command(process.execPath, [executable, 'version', '--json'], true));
-      if (result.version !== releaseVersion) throw new Error('Release package version does not match the installer.');
-      await writeFile(path.join(payload, '.bonko-install.json'), JSON.stringify({ version: releaseVersion, digest }) + '\n', { flag: 'wx' });
+      const result = JSON.parse(
+        await command(process.execPath, [executable, 'version', '--json'], true, controller.signal),
+      );
+      if (result.version !== releaseVersion)
+        throw new Error('Release package version does not match the installer.');
+      await writeFile(
+        path.join(payload, '.bonko-install.json'),
+        JSON.stringify({ version: releaseVersion, digest }) + '\n',
+        { flag: 'wx' },
+      );
       await rename(payload, versionDir);
     }
+    controller.signal.throwIfAborted();
     const installedExecutable = path.join(versionDir, 'node_modules/@bonkofun/cli/bin/bonko.mjs');
     await access(installedExecutable);
     const temporaryEntry = path.join(binDir, `.bonko-${process.pid}`);
-    try { await symlink(installedExecutable, temporaryEntry); await rename(temporaryEntry, entry); }
-    finally { await rm(temporaryEntry, { force: true }); }
+    try {
+      await symlink(installedExecutable, temporaryEntry);
+      await rename(temporaryEntry, entry);
+    } finally {
+      await rm(temporaryEntry, { force: true });
+    }
     console.log(`Installed Bonko ${releaseVersion}\nCommand: ${entry}\n\nTry: ${entry} help`);
-    if (!(process.env.PATH ?? '').split(path.delimiter).includes(binDir)) console.log(`\nAdd this directory to PATH in your shell profile, then reopen your terminal:\n  ${binDir}\n\nFor this terminal:\n  export PATH=${("'" + binDir.replaceAll("'", "'\"'\"'") + "'")}:"$PATH"`);
+    if (!(process.env.PATH ?? '').split(path.delimiter).includes(binDir))
+      console.log(
+        `\nAdd this directory to PATH in your shell profile, then reopen your terminal:\n  ${binDir}\n\nFor this terminal:\n  export PATH=${"'" + binDir.replaceAll("'", "'\"'\"'") + "'"}:"$PATH"`,
+      );
   } finally {
-    if (staging) await rm(staging, { recursive: true, force: true });
-    await rm(lock, { recursive: true, force: true });
+    process.off('SIGINT', interrupt);
+    process.off('SIGTERM', interrupt);
+    try {
+      if (staging) await rm(staging, { recursive: true, force: true });
+    } finally {
+      await rm(lock, { recursive: true, force: true });
+    }
   }
 }
 

@@ -21,10 +21,10 @@ Install the latest published release:
 curl -fsSL https://github.com/bonkofun/bonko-cli/releases/latest/download/install.sh | sh
 ```
 
-These download URLs become available after the first successful tag release. To install a specific version, replace `v0.1.0` below with its release tag:
+To install a specific published version:
 
 ```sh
-curl -fsSL https://github.com/bonkofun/bonko-cli/releases/download/v0.1.0/install.sh | sh
+curl -fsSL https://github.com/bonkofun/bonko-cli/releases/download/v0.1.1/install.sh | sh
 ```
 
 The installer checks Node and npm first, stops with an actionable error if either is missing or incompatible, and does not install Node automatically. It verifies the package SHA-256 checksum and installs pinned dependencies with npm lifecycle scripts disabled.
@@ -41,17 +41,18 @@ bonko dev
 
 Edit text, select a local photo and adjust its crop in Studio. Choose **Apply content and crop**, then verify playback with **Play**, **Pause**, **View message** and **Replay**. Source edits rebuild automatically; a build error stops the old preview until corrected.
 
-| Command | Purpose |
-|---|---|
-| `bonko new <name>` | Create a standalone project without overwriting existing files |
-| `bonko dev` | Start Studio and open the browser |
-| `bonko dev --port 4175 --no-open` | Choose a port without opening the browser |
-| `bonko build` | Compile runtime files without browser checks or a delivery ZIP |
-| `bonko check` | Build and run the full Chromium checks |
-| `bonko pack` | Run checks again and create a `.bonko.zip` delivery package |
-| `bonko browser install` | Download Chromium ahead of time |
-| `bonko help [command]` | Show help; also supports `-h` and `--help` |
-| `bonko version` | Show CLI, SDK and Node versions; also supports `-v` and `--version` |
+| Command                           | Purpose                                                             |
+| --------------------------------- | ------------------------------------------------------------------- |
+| `bonko new <name>`                | Create a standalone project without overwriting existing files      |
+| `bonko dev`                       | Start Studio and open the browser                                   |
+| `bonko dev --port 4175 --no-open` | Choose a port without opening the browser                           |
+| `bonko build`                     | Compile runtime files without browser checks or a delivery ZIP      |
+| `bonko check`                     | Build and run the full Chromium checks                              |
+| `bonko pack`                      | Run checks again and create a `.bonko.zip` delivery package         |
+| `bonko browser install`           | Download Chromium ahead of time                                     |
+| `bonko help [command]`            | Show help; also supports `-h` and `--help`                          |
+| `bonko use <version>`             | Select a verified, already-installed CLI release                    |
+| `bonko version`                   | Show CLI, SDK and Node versions; also supports `-v` and `--version` |
 
 `new`, `build`, `check`, `pack` and `version` accept `--json`. Failures exit with code 1. Use `check/pack --no-download` to forbid automatic browser downloads. On Linux, install any missing browser system libraries according to Playwright's error message; the CLI does not elevate privileges automatically.
 
@@ -72,7 +73,7 @@ birthday-card/
   dist/              Verified delivery packages
 ```
 
-Commands also work from project subdirectories. Builds use the CLI's fixed dependencies, not project Vite configuration or environment files. `bonko.json` pins the CLI version; install that version if it differs. Editor paths refer to the local CLI installation and may need updating when moving a project to another computer; CLI builds resolve dependencies independently.
+Commands also work from project subdirectories. Builds use the CLI's fixed dependencies, not project Vite configuration or environment files. `bonko.json` pins the CLI version. Use `bonko use <version>` to select an installed version, or install the missing release first. Project pins are never silently rewritten. Editor paths refer to the local CLI installation and may need updating when moving a project to another computer; CLI builds resolve dependencies independently.
 
 Templates may import `react`, `react/jsx-runtime`, `react-dom/client`, `motion/react`, `@bonko/template-sdk/runtime-client`, and relative files inside `src/`. Use native DOM/CSS, declared Canvas/WebGL capabilities, and SDK-managed short audio. Every template must support a complete static state, pause, cleanup, reduced motion and keyboard interaction.
 
@@ -83,9 +84,8 @@ Studio uses React, Vite, Tailwind CSS, shadcn/ui, Tabler Icons and a phone frame
 ```sh
 npm ci --ignore-scripts
 npm run build
-npm run typecheck
 node bin/bonko.mjs browser install
-npm test
+npm run verify
 ```
 
 Use `node bin/bonko.mjs` to run the workspace CLI. Tests include real browser checks and installation of the packaged release. CI verifies Linux and macOS on the configured Node versions.
@@ -96,32 +96,13 @@ Use `node bin/bonko.mjs` to run the workspace CLI. Tests include real browser ch
 npm run release
 ```
 
-Local packaging produces `release/install.sh`, `release/bonko-cli-<version>.tgz`, and its `.sha256` file. It does not upload files or publish to npm. For a configured download host, pass `-- --base-url https://example.com/releases/v0.1.0`; the installer also accepts `--base-url` or `BONKO_RELEASE_BASE_URL`.
+Local packaging produces `release/install.sh`, `release/bonko-cli-<version>.tgz`, and its `.sha256` file. It does not upload files or publish to npm. For a configured download host, pass `-- --base-url https://example.com/releases/v0.1.1`; the installer also accepts `--base-url` or `BONKO_RELEASE_BASE_URL`.
 
-To publish on GitHub, update the package version, shrinkwrap and generated installer, commit them, then push a matching tag. For example, when releasing the next patch:
-
-```sh
-npm version patch --no-git-tag-version
-node scripts/generate-installer.mjs
-# Review the version changes, run the checks above, and commit them.
-git add package.json npm-shrinkwrap.json install.sh
-git commit -m "chore(release): prepare next patch"
-git tag -a "v$(node -p 'require("./package.json").version')" -m "Bonko CLI release"
-git push origin HEAD
-git push origin "v$(node -p 'require("./package.json").version')"
-```
-
-For the first release, keep the current package version and tag its committed state as `v0.1.0`. The [Release workflow](.github/workflows/release.yml) runs on pushed `v*` tags, requires a stable `vX.Y.Z` matching the package and shrinkwrap, builds and tests the CLI, then publishes the three assets with installation instructions and generated release notes. Each installer embeds its own version-specific GitHub download URL. Existing releases are not overwritten; use a new version for changed bytes. Repository Actions must be enabled and permitted to create releases using `GITHUB_TOKEN`; no npm publishing token is needed.
-
-For a local installation test, use the digest from the generated checksum file:
-
-```sh
-sh install.sh --archive /absolute/path/bonko-cli-0.1.0.tgz \
-  --sha256 <64-character-sha256> --prefix /tmp/bonko-install
-/tmp/bonko-install/bin/bonko help
-```
+Develop on **dev** and submit a PR into **main**. Releases require a matching stable tag on a commit already merged to main, then all four Linux/macOS and Node verification jobs must pass before assets can be published. See [Contributing](CONTRIBUTING.md) for development and [Releasing](docs/RELEASING.md) for the exact version, tag and installation-recovery procedures.
 
 Template ZIPs still require platform review. Automated checks do not replace asset licensing, real-device touch, audio or visual review.
+
+More details: [Architecture](docs/ARCHITECTURE.md), [project skills](docs/SKILLS.md), and [security reporting](SECURITY.md).
 
 ## License
 

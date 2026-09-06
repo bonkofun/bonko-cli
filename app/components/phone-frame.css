@@ -1,6 +1,31 @@
 /* Same 12px bezel, hidden notch, screen ratio and responsive fit as Bonko PhoneFrame. */
-.phone-frame { --phone-width: 300; position: relative; isolation: isolate; width: min(100%, calc(var(--phone-width) * 1px)); aspect-ratio: var(--device-width) / var(--device-height); margin-inline: auto; }
-.phone-frame > .phone-device { position: absolute; top: 0; left: 0; display: block; transform-origin: top left; transform: scale(var(--phone-scale, calc(var(--phone-width) / var(--device-width)))); transition: none; }
-.phone-frame > .phone-device > .screen { background: #09090b; }
-.phone-device::before, .phone-device::after, .phone-device > :not(.screen) { pointer-events: none; }
-@media (min-width: 1024px) { .phone-frame { --phone-width: 340; } }
+.phone-frame {
+  --phone-width: 300;
+  position: relative;
+  isolation: isolate;
+  width: min(100%, calc(var(--phone-width) * 1px));
+  aspect-ratio: var(--device-width) / var(--device-height);
+  margin-inline: auto;
+}
+.phone-frame > .phone-device {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  transform-origin: top left;
+  transform: scale(var(--phone-scale, calc(var(--phone-width) / var(--device-width))));
+  transition: none;
+}
+.phone-frame > .phone-device > .screen {
+  background: #09090b;
+}
+.phone-device::before,
+.phone-device::after,
+.phone-device > :not(.screen) {
+  pointer-events: none;
+}
+@media (min-width: 1024px) {
+  .phone-frame {
+    --phone-width: 340;
+  }
+}
