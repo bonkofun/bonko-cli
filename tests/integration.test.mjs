@@ -3,6 +3,8 @@ import { assertTemplateGuidance } from './helpers/template-guidance.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+import { once } from 'node:events';
 import { mkdtemp, readFile, writeFile, rm, readdir, access } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -245,8 +247,42 @@ test(
       );
       await run(executable, ['new', 'release-note'], parent);
       const project = path.join(parent, 'release-note');
+      // A fresh installation has no old CLI to fall back to after an upgrade.
+      const oldMarker = JSON.stringify({ schemaVersion: 1, cliVersion: '0.1.2' });
+      await writeFile(path.join(project, 'bonko.json'), oldMarker);
       await assertTemplateGuidance(project);
       await assert.rejects(access(path.join(project, 'node_modules')), { code: 'ENOENT' });
+      const reservation = createServer();
+      reservation.listen(0, '127.0.0.1');
+      await once(reservation, 'listening');
+      const port = reservation.address().port;
+      await new Promise((resolve) => reservation.close(resolve));
+      const dev = spawn(executable, ['dev', '--port', String(port), '--no-open'], {
+        cwd: path.join(project, 'src'),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let devOutput = '';
+      dev.stdout.on('data', (chunk) => {
+        devOutput += chunk;
+      });
+      dev.stderr.on('data', (chunk) => {
+        devOutput += chunk;
+      });
+      const exited = once(dev, 'exit');
+      let previewBrowser;
+      try {
+        await expect.poll(() => devOutput, { timeout: 15000 }).toContain('Bonko Studio:');
+        previewBrowser = await chromium.launch();
+        const page = await previewBrowser.newPage();
+        await page.goto(`http://127.0.0.1:${port}/`);
+        await expect(
+          page.frameLocator('[data-preview-layer="current"] iframe').getByRole('heading'),
+        ).toHaveText('Alex');
+      } finally {
+        await previewBrowser?.close();
+        dev.kill('SIGTERM');
+        await exited;
+      }
       const result = JSON.parse(await run(executable, ['build', '--json'], project));
       assert.equal(result.verified, false);
       await access(path.join(result.directory, 'runtime/entry.js'));
@@ -260,6 +296,7 @@ test(
         await run(executable, ['pack', '--no-download', '--json'], project),
       );
       assert.equal(packed.ok, true);
+      assert.equal(await readFile(path.join(project, 'bonko.json'), 'utf8'), oldMarker);
       assert.ok((await readFile(packed.files[0])).length > 1000);
       assert.ok((await readdir(path.join(project, '.bonko/checks'))).includes('390.png'));
       // Idempotent installation keeps the same verified version and launcher.
