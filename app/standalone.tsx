@@ -266,8 +266,17 @@ function Workspace({
   const controls = useRef<RuntimeFrameControls | null>(null);
   const observeControls = useCallback((view: RuntimeFrameControls) => {
     controls.current = view;
-    setAudioMuted(view.muted);
   }, []);
+  function toggleSound() {
+    const muted = !audioMuted;
+    setAudioMuted(muted);
+    // Static hosts remain silent; retain the preference for the next Play gesture.
+    controls.current?.setMuted(muted);
+  }
+  function playWithSound(view: RuntimeFrameControls) {
+    view.setMuted(audioMuted);
+    view.play();
+  }
   const [mode, setMode] = useState('interactive');
   useEffect(() => {
     if (!photo) {
@@ -454,15 +463,18 @@ function Workspace({
               </CardHeader>
               <CardContent>
                 <FieldGroup>
-                  <p>
+                  <p role="status">
                     {preview.submission.capabilities.includes('audio')
-                      ? 'Replay and start the experience to test sound. Playback pauses when the window is in the background.'
+                      ? audioMuted
+                        ? 'Sound is muted. Enable sound to hear audio during playback.'
+                        : 'Sound is enabled. Click Replay, then Play, and interact with the template to hear its sound. Static previews stay silent.'
                       : 'This template has no audio. The full experience works silently.'}
                   </p>
                   <Button
                     variant="outline"
                     disabled={!preview.submission.capabilities.includes('audio')}
-                    onClick={() => controls.current?.setMuted(!audioMuted)}
+                    aria-pressed={!audioMuted}
+                    onClick={toggleSound}
                   >
                     {audioMuted ? 'Enable sound' : 'Mute sound'}
                   </Button>
@@ -595,6 +607,7 @@ function Workspace({
           ) : (
             <StableRuntimePreview
               authoredStatic
+              muted={audioMuted}
               onControls={observeControls}
               previewKey={key}
               title="Template preview"
@@ -667,7 +680,7 @@ function Workspace({
                           view.state === 'running' ||
                           view.state === 'waiting'
                         }
-                        onClick={view.play}
+                        onClick={() => playWithSound(view)}
                       >
                         <IconPlayerPlay data-icon="inline-start" aria-hidden="true" />
                         {view.state === 'paused' ? 'Continue' : 'Play'}
@@ -693,14 +706,15 @@ function Workspace({
                           !preview.submission.capabilities.includes('audio') ||
                           view.state === 'ended'
                         }
-                        onClick={() => view.setMuted(!view.muted)}
+                        aria-pressed={!audioMuted}
+                        onClick={toggleSound}
                       >
-                        {view.muted ? (
+                        {audioMuted ? (
                           <IconVolume data-icon="inline-start" aria-hidden="true" />
                         ) : (
                           <IconVolumeOff data-icon="inline-start" aria-hidden="true" />
                         )}
-                        {view.muted ? 'Unmute' : 'Mute'}
+                        {audioMuted ? 'Unmute' : 'Mute'}
                       </Button>
                     </div>
                     <p className="playback-hint">

@@ -154,3 +154,5 @@ More details: [Architecture](docs/ARCHITECTURE.md), [project skills](docs/SKILLS
 ## License
 
 Bonko CLI is released under the [MIT License](LICENSE). Third-party dependencies and user-supplied assets retain their own licenses. See [source provenance](PROVENANCE.md).
+
+The Audio tab remembers the sound preference through static editing and Replay. Enable sound changes this preference immediately; it does not audition a clip in static mode. Click Replay, then Play, then trigger the template interaction to hear its cues. Play applies the preference within the host gesture, while static/reduced-motion presentations remain silent.
