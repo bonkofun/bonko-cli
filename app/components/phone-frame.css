@@ -1,11 +1,17 @@
-/* Same 12px bezel, hidden notch, screen ratio and responsive fit as Bonko PhoneFrame. */
+.phone-space {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
 .phone-frame {
-  --phone-width: 300;
   position: relative;
   isolation: isolate;
-  width: min(100%, calc(var(--phone-width) * 1px));
-  aspect-ratio: var(--device-width) / var(--device-height);
-  margin-inline: auto;
+  width: var(--phone-render-width, 0px);
+  height: var(--phone-render-height, 0px);
 }
 .phone-frame > .phone-device {
   position: absolute;
@@ -13,7 +19,7 @@
   left: 0;
   display: block;
   transform-origin: top left;
-  transform: scale(var(--phone-scale, calc(var(--phone-width) / var(--device-width))));
+  transform: scale(var(--phone-scale, 0));
   transition: none;
 }
 .phone-frame > .phone-device > .screen {
@@ -23,9 +29,4 @@
 .phone-device::after,
 .phone-device > :not(.screen) {
   pointer-events: none;
-}
-@media (min-width: 1024px) {
-  .phone-frame {
-    --phone-width: 340;
-  }
 }

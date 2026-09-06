@@ -47,23 +47,112 @@ test(
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await page.goto(server.origin);
-      const frame = page.frameLocator('iframe');
+      const frame = page.frameLocator('[data-preview-layer="current"] iframe');
       await expect(frame.getByRole('heading')).toHaveText('Alex');
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor');
-      await page.getByRole('button', { name: 'Apply content and crop' }).click();
+      await expect(page.getByRole('button', { name: 'Apply content and crop' })).toHaveCount(0);
       await expect(frame.getByRole('heading')).toHaveText('Taylor');
-      for (const width of [375, 390, 430]) {
-        await page.getByRole('radio', { name: `${width} pixels` }).click();
+      await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Live message');
+      await expect(frame.getByText('Live message', { exact: true })).toBeVisible();
+      await page.getByRole('tab', { name: 'Photo & framing', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Choose photo', exact: true })).toBeVisible();
+      await expect(page.getByText('No file selected', { exact: true })).toBeVisible();
+      await expect(page.getByLabel('Local photo', { exact: true })).toBeHidden();
+      await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
+      await expect(frame.locator('img')).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 0, 0)');
+      await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      const cropSlider = page.getByRole('slider', { name: 'Horizontal crop', exact: true });
+      await cropSlider.press('ArrowRight');
+      await expect(frame.locator('img')).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 1, 0)');
+      // Every DOM mutation during repeated edits must retain a visible authored frame.
+      await page.evaluate(() => {
+        window.__previewGaps = [];
+        window.__previewObserver = new MutationObserver(() => {
+          const current = document.querySelector('[data-preview-layer="current"]');
+          const iframe = current?.querySelector('iframe');
+          if (!iframe || iframe.hidden || current.querySelector('.runtime-fallback')) {
+            window.__previewGaps.push('missing authored frame');
+          }
+        });
+        window.__previewObserver.observe(document.querySelector('.preview-stage'), {
+          subtree: true,
+          childList: true,
+          attributes: true,
+        });
+      });
+      for (let step = 0; step < 6; step++) {
+        await cropSlider.press('ArrowRight');
+        await expect(frame.locator('img')).toHaveCSS(
+          'transform',
+          `matrix(1.05, 0, 0, 1.05, ${step + 2}, 0)`,
+        );
+      }
+      const gaps = await page.evaluate(() => {
+        window.__previewObserver.disconnect();
+        return window.__previewGaps;
+      });
+      assert.deepEqual(gaps, []);
+      await expect(page.locator('iframe')).toHaveCount(1);
+      await page.getByRole('button', { name: 'Replay', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
+      await page.getByRole('button', { name: 'View message', exact: true }).click();
+      await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await page.getByRole('tab', { name: 'Make it personal', exact: true }).click();
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
+      await expect(frame.getByRole('heading')).toHaveText('Taylor again');
+      await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Latest replay');
+      await page.getByRole('button', { name: 'Replay', exact: true }).click();
+      await expect(frame.getByRole('heading')).toHaveText('Latest replay');
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
+      await expect(frame.getByRole('heading')).toHaveText('Taylor again');
+      await page.getByRole('button', { name: 'Switch to dark theme', exact: true }).click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      await page.getByRole('button', { name: 'Switch to light theme', exact: true }).click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      await page.getByRole('tab', { name: 'Audio', exact: true }).click();
+      await expect(page.getByText('This template has no audio.', { exact: false })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Enable sound' })).toBeDisabled();
+      await page.getByRole('button', { name: 'Enter fullscreen preview', exact: true }).click();
+      await expect
+        .poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('aria-label')))
+        .toBe('Live preview');
+      await page.getByRole('button', { name: 'Exit fullscreen preview', exact: true }).click();
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+      await page.getByRole('button', { name: 'Enter fullscreen preview', exact: true }).click();
+      await page
+        .getByRole('button', { name: 'Exit fullscreen preview', exact: true })
+        .press('Escape');
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+      const originalSize = await page.locator('.phone-frame').boundingBox();
+      await page.getByRole('slider', { name: 'Size', exact: true }).press('Home');
+      await expect
+        .poll(async () => (await page.locator('.phone-frame').boundingBox()).height)
+        .toBeLessThan(originalSize.height * 0.6);
+      await page.getByRole('slider', { name: 'Size', exact: true }).press('End');
+      for (const [width, height] of [
+        [1440, 900],
+        [1280, 720],
+        [375, 1000],
+        [390, 1000],
+        [430, 1000],
+      ]) {
+        await page.setViewportSize({ width, height });
         await expect
           .poll(() =>
-            page
-              .frames()
-              .find((f) => f !== page.mainFrame())
-              .evaluate(() => innerWidth),
+            page.evaluate(
+              () =>
+                document.documentElement.scrollWidth <= innerWidth &&
+                document.documentElement.scrollHeight <= innerHeight,
+            ),
           )
-          .toBe(width);
-        await page.setViewportSize({ width, height: 1000 });
-        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+          .toBe(true);
+        await expect
+          .poll(async () => {
+            const device = await page.locator('.phone-frame').boundingBox();
+            return device.height > 0 && device.y + device.height <= height;
+          })
+          .toBe(true);
       }
       const source = path.join(project.root, 'src/main.tsx'),
         original = await readFile(source, 'utf8');
@@ -71,7 +160,7 @@ test(
       await expect(page.getByRole('alert')).toContainText('not assignable', { timeout: 15000 });
       await expect(page.locator('iframe')).toHaveCount(0);
       await writeFile(source, original);
-      await expect(frame.getByRole('heading')).toHaveText('Taylor', { timeout: 15000 });
+      await expect(frame.getByRole('heading')).toHaveText('Taylor again', { timeout: 15000 });
       assert.deepEqual(errors, []);
     } finally {
       await browser?.close();

@@ -69,7 +69,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         'SOURCE_CHANGED',
         'Source changed before browser verification; run check again',
       );
-    const frame = page.frameLocator('iframe');
+    const frame = page.frameLocator('[data-preview-layer="current"] iframe');
     const modeLabels = {
       reduced: 'Reduced motion',
       static: 'Authored static view',
@@ -78,10 +78,11 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       interactive: 'Template playback',
     };
     async function chooseMode(value: keyof typeof modeLabels) {
+      await page.getByRole('tab', { name: 'Test the experience', exact: true }).click();
       await page.getByRole('combobox', { name: 'Preview mode' }).click();
       await page.getByRole('option', { name: modeLabels[value], exact: true }).click();
     }
-    const status = page.locator('[data-playback] [role=status]');
+    const status = page.locator('[data-preview-layer="current"] [data-playback] [role=status]');
     const play = page.getByRole('button', { name: 'Play', exact: true });
     const skip = page.getByRole('button', { name: 'View message', exact: true });
     await expect(play).toBeEnabled();
@@ -155,6 +156,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       ctx.fillRect(0, 0, 30, 83);
       return canvas.toDataURL('image/png').split(',')[1];
     });
+    await page.getByRole('tab', { name: 'Photo & framing', exact: true }).click();
     await page.getByLabel('Local photo', { exact: true }).setInputFiles({
       name: 'local-check-photo.png',
       mimeType: 'image/png',
@@ -162,11 +164,15 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     });
     await page.getByRole('slider', { name: 'Scale', exact: true }).focus();
     for (let step = 0; step < 10; step++) await page.keyboard.press('ArrowRight');
+    await page.getByRole('tab', { name: 'Make it personal', exact: true }).click();
     await page.getByLabel('Name', { exact: true }).fill('Alex <test>');
     await page.getByLabel('Message', { exact: true }).fill('Your words stay text: <b>hello</b>');
     await page.getByLabel('Sender Optional', { exact: true }).fill('Sam');
-    await page.getByRole('button', { name: 'Apply content and crop' }).click();
+    await expect(
+      frame.getByText('Your words stay text: <b>hello</b>', { exact: true }),
+    ).toBeVisible();
     async function finish() {
+      await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect(play).toBeEnabled();
       await play.focus();
       await play.press('Enter');
@@ -197,17 +203,21 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         );
     }
     async function finalContent(name: string, message: string, sender: string) {
-      await expect(page.locator('[data-playback]')).toHaveAttribute('data-static', 'ready');
-      await expect(page.locator('iframe')).toBeVisible();
-      const child = page.frames().find((value) => value !== page.mainFrame());
-      if (!child) throw new Error('Missing template frame');
+      await expect(page.locator('[data-preview-layer="current"] [data-playback]')).toHaveAttribute(
+        'data-static',
+        'ready',
+      );
+      const child = frame.locator('body');
+      await expect(child).toContainText(name);
+      await expect(child).toContainText(message);
+      if (sender) await expect(child).toContainText(sender);
       await child.evaluate(async () => {
         await Promise.all(
           [...document.images].map((image) => image.decode().catch(() => undefined)),
         );
       });
       const result = await child.evaluate(
-        ({ name, message, sender }) => {
+        (_body, { name, message, sender }) => {
           const text = document.body.innerText;
           const photo = [...document.images].find(
             (image) =>
@@ -255,7 +265,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     await mkdir(output, { recursive: true });
     for (const width of [375, 390, 430, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
-      await page.getByRole('radio', { name: `${width === 1440 ? 390 : width} pixels` }).click();
+      await page.getByRole('tab', { name: 'Test the experience', exact: true }).click();
       await page.getByRole('button', { name: 'Maximum text / empty sender' }).click();
       await finish();
       await finalContent(
