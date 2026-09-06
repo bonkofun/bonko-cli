@@ -718,7 +718,7 @@ function Workspace({
             </StableRuntimePreview>
           )}
         </div>
-        <p className="preview-footnote">Isolated preview · No production connection</p>
+        <p className="preview-footnote">Code changes automatically update the preview.</p>
         {fullscreenError ? (
           <p role="alert" className="preview-footnote">
             {fullscreenError}
