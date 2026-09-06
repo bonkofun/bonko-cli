@@ -1,3 +1,4 @@
+import { assertTemplateGuidance } from './helpers/template-guidance.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -130,6 +131,7 @@ test(
       );
       await run(executable, ['new', 'release-note'], parent);
       const project = path.join(parent, 'release-note');
+      await assertTemplateGuidance(project);
       await assert.rejects(access(path.join(project, 'node_modules')), { code: 'ENOENT' });
       const result = JSON.parse(await run(executable, ['build', '--json'], project));
       assert.equal(result.verified, false);

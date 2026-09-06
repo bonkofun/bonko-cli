@@ -1,3 +1,4 @@
+import { assertTemplateGuidance } from './helpers/template-guidance.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm, symlink, mkdir, access } from 'node:fs/promises';
@@ -50,6 +51,7 @@ test('new creates flat projects exclusively and resolves them from nested folder
   const parent = await mkdtemp(path.join(tmpdir(), 'bonko-cli-project-'));
   try {
     const project = await createProject('gift-note', parent);
+    await assertTemplateGuidance(project.root);
     assert.deepEqual(await findProject(path.join(project.root, 'src')), project);
     await assert.rejects(createProject('gift-note', parent), /already exists/);
     await assert.rejects(createProject('../escape', parent), /lowercase/);
@@ -80,6 +82,14 @@ test('tool-owned dependencies build React/Motion without project node_modules an
     const first = await buildRuntime(project.root, project.slug);
     assert.ok(first.bytes.length > 0);
     assert.ok(first.files['source/dependencies.json']);
+    assert.ok(
+      !Object.keys(first.files).some((file) => /AGENTS|DEVELOPMENT|SKILL|\.agents/.test(file)),
+    );
+    await writeFile(
+      path.join(project.root, '.agents/skills/bonko-template-author/SKILL.md'),
+      'Local author guidance',
+    );
+    await writeFile(path.join(project.root, 'AGENTS.md'), 'Local instructions');
     await mkdir(path.join(project.root, '.bonko'));
     await writeFile(path.join(project.root, '.bonko/private-photo.png'), 'private');
     await writeFile(path.join(project.root, '.env'), 'synthetic-private');
