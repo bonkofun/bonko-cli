@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { StableRuntimePreview } from '@/components/stable-runtime-preview';
 import { loadRuntimeAssets } from '@bonko/template-sdk/runtime-assets';
 import type { TemplateSubmission } from '@bonko/template-sdk/submission';
+import type { RuntimeFrameControls } from '@bonko/template-sdk/runtime-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { token } from 'virtual:standalone';
 import {
+  IconSun,
+  IconMoon,
   IconPlayerPlay,
   IconPlayerPause,
   IconRotateClockwise,
@@ -51,6 +55,22 @@ type Preview = {
   assets: Record<string, { url: string; sha256: string; byteSize: number; contentType: string }>;
 };
 function Studio() {
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('bonko-studio-theme') === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    try {
+      localStorage.setItem('bonko-studio-theme', theme);
+    } catch {
+      /* Optional preference storage. */
+    }
+  }, [theme]);
   const [preview, setPreview] = useState<Preview>();
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
@@ -109,7 +129,35 @@ function Studio() {
           <Separator orientation="vertical" />
           <span>Template Studio</span>
         </div>
-        <Badge variant="outline">Local workspace</Badge>
+        <div className="header-actions">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={theme}
+            aria-label="Theme"
+            onValueChange={(value) => {
+              if (value) setTheme(value);
+            }}
+          >
+            <ToggleGroupItem
+              value="light"
+              aria-label="Light theme"
+              title="Light theme"
+              className="size-11"
+            >
+              <IconSun size={20} stroke={2} aria-hidden="true" />
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="dark"
+              aria-label="Dark theme"
+              title="Dark theme"
+              className="size-11"
+            >
+              <IconMoon size={20} stroke={2} aria-hidden="true" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <Badge variant="outline">Local workspace</Badge>
+        </div>
       </header>
       <div className="workspace-heading">
         <div>
@@ -192,10 +240,17 @@ function Workspace({
     setEditing(false);
     refresh();
   }
+  const photoInput = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<File>();
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoError, setPhotoError] = useState('');
-  const [width, setWidth] = useState(375);
+  const [zoom, setZoom] = useState(100);
+  const [audioMuted, setAudioMuted] = useState(true);
+  const controls = useRef<RuntimeFrameControls | null>(null);
+  const observeControls = useCallback((view: RuntimeFrameControls) => {
+    controls.current = view;
+    setAudioMuted(view.muted);
+  }, []);
   const [mode, setMode] = useState('interactive');
   useEffect(() => {
     if (!photo) {
@@ -227,181 +282,247 @@ function Workspace({
   return (
     <div className="workspace">
       <aside className="editor-panels" aria-label="Preview inputs">
-        <form className="editor-form" onSubmit={(event) => event.preventDefault()}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Make it personal</CardTitle>
-              <CardDescription>Changes appear automatically in the complete card.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FieldGroup className="gap-5">
-                <Field>
-                  <FieldLabel htmlFor="recipient">Name</FieldLabel>
-                  <Input
-                    id="recipient"
-                    required
-                    maxLength={30}
-                    value={draft.recipientName}
-                    onChange={(event) => editDraft({ ...draft, recipientName: event.target.value })}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="message">Message</FieldLabel>
-                  <Textarea
-                    id="message"
-                    required
-                    maxLength={160}
-                    className="min-h-24"
-                    value={draft.message}
-                    onChange={(event) => editDraft({ ...draft, message: event.target.value })}
-                  />
-                  <FieldDescription className="text-right">
-                    {draft.message.length} / 160
-                  </FieldDescription>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="sender">
-                    Sender <span className="optional-label">Optional</span>
-                  </FieldLabel>
-                  <Input
-                    id="sender"
-                    maxLength={30}
-                    value={draft.senderName}
-                    onChange={(event) => editDraft({ ...draft, senderName: event.target.value })}
-                  />
-                </Field>
-              </FieldGroup>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Photo & framing</CardTitle>
-              <CardDescription>Try a local photo and adjust its crop.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FieldGroup className="gap-4">
-                <Field data-invalid={!!photoError}>
-                  <FieldLabel htmlFor="photo">Local photo</FieldLabel>
-                  <Input
-                    id="photo"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    aria-invalid={!!photoError}
-                    aria-describedby={photoError ? 'photo-error photo-help' : 'photo-help'}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (
-                        file &&
-                        (file.size > 10 * 1024 * 1024 ||
-                          !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
-                      ) {
-                        setPhotoError('Choose a PNG, JPEG or WebP photo no larger than 10 MiB.');
-                        return;
+        <Tabs defaultValue="personal" className="editor-tabs">
+          <TabsList className="w-full">
+            <TabsTrigger value="personal" aria-label="Make it personal">
+              Personal
+            </TabsTrigger>
+            <TabsTrigger value="photo" aria-label="Photo & framing">
+              Photo
+            </TabsTrigger>
+            <TabsTrigger value="audio">Audio</TabsTrigger>
+            <TabsTrigger value="test" aria-label="Test the experience">
+              Test
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="personal">
+            <Card>
+              <CardHeader>
+                <CardTitle>Make it personal</CardTitle>
+                <CardDescription>
+                  Changes appear automatically in the complete card.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup className="gap-5">
+                  <Field>
+                    <FieldLabel htmlFor="recipient">Name</FieldLabel>
+                    <Input
+                      id="recipient"
+                      required
+                      maxLength={30}
+                      value={draft.recipientName}
+                      onChange={(event) =>
+                        editDraft({ ...draft, recipientName: event.target.value })
                       }
-                      setPhotoError('');
-                      setEditing(true);
-                      setPhoto(file);
-                    }}
-                  />
-                  {photoError ? <FieldError id="photo-error">{photoError}</FieldError> : null}
-                  <FieldDescription id="photo-help">
-                    Stays in this browser. Never added to your package.
-                  </FieldDescription>
-                </Field>
-                <Separator />
-                {(
-                  [
-                    ['scale', 1, 3, 0.05, 'Scale'],
-                    ['x', -100, 100, 1, 'Horizontal crop'],
-                    ['y', -100, 100, 1, 'Vertical crop'],
-                  ] as const
-                ).map(([field, min, max, step, label]) => (
-                  <Field className="gap-1" key={field}>
-                    <div className="crop-label">
-                      <FieldLabel id={`crop-${field}`}>{label}</FieldLabel>
-                      <output>
-                        {field === 'scale' ? `${crop[field].toFixed(2)}×` : `${crop[field]} px`}
-                      </output>
-                    </div>
-                    <Slider
-                      aria-labelledby={`crop-${field}`}
-                      min={min}
-                      max={max}
-                      step={step}
-                      value={[crop[field]]}
-                      onValueChange={([value]) => {
-                        setEditing(true);
-                        setCrop((previous) => ({ ...previous, [field]: value }));
-                      }}
                     />
                   </Field>
-                ))}
-              </FieldGroup>
-            </CardContent>
-          </Card>
-        </form>
-        <Card>
-          <CardHeader>
-            <CardTitle>Test the experience</CardTitle>
-            <CardDescription>Check alternate states and longer messages.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FieldGroup className="gap-4">
-              <Field>
-                <FieldLabel htmlFor="preview-mode">Preview mode</FieldLabel>
-                <Select
-                  value={mode}
-                  onValueChange={(value) => {
-                    setEditing(false);
-                    setMode(value);
-                    refresh();
-                  }}
-                >
-                  <SelectTrigger id="preview-mode" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {modes.map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>Sample content</FieldLabel>
-                <div className="sample-actions">
+                  <Field>
+                    <FieldLabel htmlFor="message">Message</FieldLabel>
+                    <Textarea
+                      id="message"
+                      required
+                      maxLength={160}
+                      className="min-h-24"
+                      value={draft.message}
+                      onChange={(event) => editDraft({ ...draft, message: event.target.value })}
+                    />
+                    <FieldDescription className="text-right">
+                      {draft.message.length} / 160
+                    </FieldDescription>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="sender">
+                      Sender <span className="optional-label">Optional</span>
+                    </FieldLabel>
+                    <Input
+                      id="sender"
+                      maxLength={30}
+                      value={draft.senderName}
+                      onChange={(event) => editDraft({ ...draft, senderName: event.target.value })}
+                    />
+                  </Field>
+                </FieldGroup>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="photo">
+            <Card>
+              <CardHeader>
+                <CardTitle>Photo & framing</CardTitle>
+                <CardDescription>Try a local photo and adjust its crop.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup className="gap-4">
+                  <Field data-invalid={!!photoError}>
+                    <FieldLabel htmlFor="photo">Local photo</FieldLabel>
+                    <Input
+                      id="photo"
+                      ref={photoInput}
+                      className="hidden"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      aria-invalid={!!photoError}
+                      aria-describedby={photoError ? 'photo-error photo-help' : 'photo-help'}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (
+                          file &&
+                          (file.size > 10 * 1024 * 1024 ||
+                            !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
+                        ) {
+                          setPhotoError('Choose a PNG, JPEG or WebP photo no larger than 10 MiB.');
+                          return;
+                        }
+                        setPhotoError('');
+                        setEditing(true);
+                        setPhoto(file);
+                      }}
+                    />
+                    <div className="photo-picker">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => photoInput.current?.click()}
+                        aria-describedby="photo-selection photo-help"
+                      >
+                        Choose photo
+                      </Button>
+                      <span id="photo-selection" className="photo-selection" title={photo?.name}>
+                        {photo?.name ?? 'No file selected'}
+                      </span>
+                    </div>
+                    {photoError ? <FieldError id="photo-error">{photoError}</FieldError> : null}
+                    <FieldDescription id="photo-help">
+                      Stays in this browser. Never added to your package.
+                    </FieldDescription>
+                  </Field>
+                  <Separator />
+                  {(
+                    [
+                      ['scale', 1, 3, 0.05, 'Scale'],
+                      ['x', -100, 100, 1, 'Horizontal crop'],
+                      ['y', -100, 100, 1, 'Vertical crop'],
+                    ] as const
+                  ).map(([field, min, max, step, label]) => (
+                    <Field className="gap-1" key={field}>
+                      <div className="crop-label">
+                        <FieldLabel id={`crop-${field}`}>{label}</FieldLabel>
+                        <output>
+                          {field === 'scale' ? `${crop[field].toFixed(2)}×` : `${crop[field]} px`}
+                        </output>
+                      </div>
+                      <Slider
+                        aria-labelledby={`crop-${field}`}
+                        min={min}
+                        max={max}
+                        step={step}
+                        value={[crop[field]]}
+                        onValueChange={([value]) => {
+                          setEditing(true);
+                          setCrop((previous) => ({ ...previous, [field]: value }));
+                        }}
+                      />
+                    </Field>
+                  ))}
+                </FieldGroup>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="audio">
+            <Card>
+              <CardHeader>
+                <CardTitle>Audio</CardTitle>
+                <CardDescription>Listen to the sound included in this template.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup>
+                  <p>
+                    {preview.submission.capabilities.includes('audio')
+                      ? 'Replay and start the experience to test sound. Playback pauses when the window is in the background.'
+                      : 'This template has no audio. The full experience works silently.'}
+                  </p>
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      const long = {
-                        recipientName: 'Alexandra'.repeat(4).slice(0, 30),
-                        message: 'A little note to remind you that you matter. '
-                          .repeat(4)
-                          .slice(0, 160),
-                        senderName: '',
-                      };
-                      editDraft(long);
-                    }}
+                    disabled={!preview.submission.capabilities.includes('audio')}
+                    onClick={() => controls.current?.setMuted(!audioMuted)}
                   >
-                    Maximum text / empty sender
+                    {audioMuted ? 'Enable sound' : 'Mute sound'}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      editDraft(sample);
-                    }}
-                  >
-                    Regular example
-                  </Button>
-                </div>
-              </Field>
-            </FieldGroup>
-          </CardContent>
-        </Card>
+                  {Object.entries(preview.submission.assets)
+                    .filter(([, asset]) => asset.kind === 'audio')
+                    .map(([id]) => (
+                      <p key={id}>{id}</p>
+                    ))}
+                </FieldGroup>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="test">
+            <Card>
+              <CardHeader>
+                <CardTitle>Test the experience</CardTitle>
+                <CardDescription>Check alternate states and longer messages.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup className="gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="preview-mode">Preview mode</FieldLabel>
+                    <Select
+                      value={mode}
+                      onValueChange={(value) => {
+                        setEditing(false);
+                        setMode(value);
+                        refresh();
+                      }}
+                    >
+                      <SelectTrigger id="preview-mode" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {modes.map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Sample content</FieldLabel>
+                    <div className="sample-actions">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const long = {
+                            recipientName: 'Alexandra'.repeat(4).slice(0, 30),
+                            message: 'A little note to remind you that you matter. '
+                              .repeat(4)
+                              .slice(0, 160),
+                            senderName: '',
+                          };
+                          editDraft(long);
+                        }}
+                      >
+                        Maximum text / empty sender
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          editDraft(sample);
+                        }}
+                      >
+                        Regular example
+                      </Button>
+                    </div>
+                  </Field>
+                </FieldGroup>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </aside>
       <section className="preview-panel" aria-label="Live preview">
         <div className="preview-toolbar">
@@ -409,26 +530,23 @@ function Workspace({
             <IconDeviceMobile size={20} stroke={2} aria-hidden="true" />
             <h2>Live preview</h2>
           </div>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={String(width)}
-            aria-label="Preview width"
-            onValueChange={(value) => {
-              if (value) setWidth(Number(value));
-            }}
-          >
-            {[375, 390, 430].map((value) => (
-              <ToggleGroupItem key={value} value={String(value)} aria-label={`${value} pixels`}>
-                {value}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          <div className="preview-zoom">
+            <label id="preview-size">Size</label>
+            <Slider
+              aria-labelledby="preview-size"
+              min={50}
+              max={100}
+              step={1}
+              value={[zoom]}
+              onValueChange={([value]) => setZoom(value)}
+            />
+            <output>{zoom}%</output>
+          </div>
         </div>
         <div className="preview-stage">
           {blocked || mode === 'generic' ? (
             <>
-              <PhoneFrame width={width}>
+              <PhoneFrame zoom={zoom}>
                 <div className="runtime-surface">{fallback}</div>
               </PhoneFrame>
               <div className="playback-panel">
@@ -444,6 +562,7 @@ function Workspace({
           ) : (
             <StableRuntimePreview
               authoredStatic
+              onControls={observeControls}
               previewKey={key}
               title="Template preview"
               src={
@@ -483,7 +602,7 @@ function Workspace({
                   data-static={view.staticState ?? 'none'}
                   aria-busy={view.staticState === 'pending'}
                 >
-                  <PhoneFrame width={width}>
+                  <PhoneFrame zoom={zoom}>
                     <div className="runtime-surface">{surface}</div>
                   </PhoneFrame>
                   <div className="playback-panel">

@@ -41,6 +41,8 @@ bonko dev
 
 Edit text, select a local photo and adjust its crop in Studio. Changes automatically update the complete authored card after a brief 100 ms input debounce; no Apply or View message click is needed. The last complete card stays visible while the next preview loads, avoiding blank or generic-fallback flashes during repeated crop adjustments. Editing during playback switches to the complete card. Choose **Replay**, then **Play** to test the animation again; **Pause** and **View message** remain available for playback testing. Source edits rebuild automatically; a build error stops the old preview until corrected.
 
+Studio uses a viewport-fitted workbench with Personal, Photo, Audio and Test tabs. Desktop controls and preview fit in one screen; short and mobile windows keep overflow contained inside the selected settings panel without a page scrollbar. The Size slider scales the phone from 50–100% of its available space while keeping the template viewport at 390 CSS pixels. Tabler sun/moon controls beside Local workspace switch Light/Dark themes and persist the selection locally. The photo picker uses English Choose photo / No file selected labels independently of browser language. The Audio tab reflects declared template audio and shares the runtime mute control; it does not upload custom sound.
+
 | Command                           | Purpose                                                             |
 | --------------------------------- | ------------------------------------------------------------------- |
 | `bonko new <name>`                | Create a standalone project without overwriting existing files      |

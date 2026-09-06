@@ -20,11 +20,25 @@ function Readiness({ view, ready }: { view: RuntimeFrameControls; ready(): void 
   return null;
 }
 
+function ControlsObserver({
+  view,
+  notify,
+}: {
+  view: RuntimeFrameControls;
+  notify(view: RuntimeFrameControls): void;
+}) {
+  useEffect(() => {
+    notify(view);
+  }, [view, notify]);
+  return null;
+}
+
 /** Keep the committed picture visible until its replacement has finished loading. */
 export function StableRuntimePreview({
   previewKey,
+  onControls,
   ...frame
-}: RuntimeFrameProps & { previewKey: string }) {
+}: RuntimeFrameProps & { previewKey: string; onControls?(view: RuntimeFrameControls): void }) {
   const [requests, setRequests] = useState<{ current: Request; pending?: Request }>({
     current: { id: previewKey, frame },
   });
@@ -38,7 +52,7 @@ export function StableRuntimePreview({
     );
   }, [previewKey]);
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       {[requests.current, ...(requests.pending ? [requests.pending] : [])].map((request) => {
         const pending = request.id !== requests.current.id;
         const props = request.id === previewKey ? frame : request.frame;
@@ -48,11 +62,18 @@ export function StableRuntimePreview({
             data-preview-layer={pending ? 'pending' : 'current'}
             aria-hidden={pending || undefined}
             inert={pending || undefined}
-            style={pending ? { position: 'absolute', inset: 0, visibility: 'hidden' } : undefined}
+            style={
+              pending
+                ? { position: 'absolute', inset: 0, visibility: 'hidden' }
+                : { height: '100%' }
+            }
           >
             <RuntimeFrame {...props}>
               {(view, surface) => (
                 <>
+                  {!pending && onControls ? (
+                    <ControlsObserver view={view} notify={onControls} />
+                  ) : null}
                   {pending ? <Readiness view={view} ready={commit} /> : null}
                   {props.children(view, surface)}
                 </>

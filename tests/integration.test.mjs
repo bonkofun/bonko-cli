@@ -54,6 +54,10 @@ test(
       await expect(frame.getByRole('heading')).toHaveText('Taylor');
       await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Live message');
       await expect(frame.getByText('Live message', { exact: true })).toBeVisible();
+      await page.getByRole('tab', { name: 'Photo & framing', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Choose photo', exact: true })).toBeVisible();
+      await expect(page.getByText('No file selected', { exact: true })).toBeVisible();
+      await expect(page.getByLabel('Local photo', { exact: true })).toBeHidden();
       await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
       await expect(frame.locator('img')).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 0, 0)');
       await expect(page.locator('[data-static="ready"]')).toBeVisible();
@@ -93,21 +97,42 @@ test(
       await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
       await page.getByRole('button', { name: 'View message', exact: true }).click();
       await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await page.getByRole('tab', { name: 'Make it personal', exact: true }).click();
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
       await expect(frame.getByRole('heading')).toHaveText('Taylor again');
       await expect(page.locator('[data-static="ready"]')).toBeVisible();
-      for (const width of [375, 390, 430]) {
-        await page.getByRole('radio', { name: `${width} pixels` }).click();
+      await page.getByRole('radio', { name: 'Dark theme', exact: true }).click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      await page.getByRole('radio', { name: 'Light theme', exact: true }).click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      await page.getByRole('tab', { name: 'Audio', exact: true }).click();
+      await expect(page.getByText('This template has no audio.', { exact: false })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Enable sound' })).toBeDisabled();
+      const originalSize = await page.locator('.phone-frame').boundingBox();
+      await page.getByRole('slider', { name: 'Size', exact: true }).press('Home');
+      await expect
+        .poll(async () => (await page.locator('.phone-frame').boundingBox()).height)
+        .toBeLessThan(originalSize.height * 0.6);
+      await page.getByRole('slider', { name: 'Size', exact: true }).press('End');
+      for (const [width, height] of [
+        [1440, 900],
+        [1280, 720],
+        [375, 1000],
+        [390, 1000],
+        [430, 1000],
+      ]) {
+        await page.setViewportSize({ width, height });
         await expect
           .poll(() =>
-            page
-              .frames()
-              .find((f) => f !== page.mainFrame())
-              .evaluate(() => innerWidth),
+            page.evaluate(
+              () =>
+                document.documentElement.scrollWidth <= innerWidth &&
+                document.documentElement.scrollHeight <= innerHeight,
+            ),
           )
-          .toBe(width);
-        await page.setViewportSize({ width, height: 1000 });
-        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+          .toBe(true);
+        const device = await page.locator('.phone-frame').boundingBox();
+        assert.ok(device.height > 0 && device.y + device.height <= height);
       }
       const source = path.join(project.root, 'src/main.tsx'),
         original = await readFile(source, 'utf8');

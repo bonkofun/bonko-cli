@@ -78,6 +78,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       interactive: 'Template playback',
     };
     async function chooseMode(value: keyof typeof modeLabels) {
+      await page.getByRole('tab', { name: 'Test the experience', exact: true }).click();
       await page.getByRole('combobox', { name: 'Preview mode' }).click();
       await page.getByRole('option', { name: modeLabels[value], exact: true }).click();
     }
@@ -155,6 +156,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       ctx.fillRect(0, 0, 30, 83);
       return canvas.toDataURL('image/png').split(',')[1];
     });
+    await page.getByRole('tab', { name: 'Photo & framing', exact: true }).click();
     await page.getByLabel('Local photo', { exact: true }).setInputFiles({
       name: 'local-check-photo.png',
       mimeType: 'image/png',
@@ -162,6 +164,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     });
     await page.getByRole('slider', { name: 'Scale', exact: true }).focus();
     for (let step = 0; step < 10; step++) await page.keyboard.press('ArrowRight');
+    await page.getByRole('tab', { name: 'Make it personal', exact: true }).click();
     await page.getByLabel('Name', { exact: true }).fill('Alex <test>');
     await page.getByLabel('Message', { exact: true }).fill('Your words stay text: <b>hello</b>');
     await page.getByLabel('Sender Optional', { exact: true }).fill('Sam');
@@ -261,7 +264,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     await mkdir(output, { recursive: true });
     for (const width of [375, 390, 430, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
-      await page.getByRole('radio', { name: `${width === 1440 ? 390 : width} pixels` }).click();
+      await page.getByRole('tab', { name: 'Test the experience', exact: true }).click();
       await page.getByRole('button', { name: 'Maximum text / empty sender' }).click();
       await finish();
       await finalContent(

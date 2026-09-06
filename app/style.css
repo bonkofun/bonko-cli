@@ -1,5 +1,6 @@
 @import 'tailwindcss' source('.');
 @import 'tw-animate-css';
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -338,4 +339,263 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* The workbench owns the viewport; only constrained content panels can overflow. */
+:root[data-theme='dark'] {
+  --background: #111113;
+  --foreground: #ededf0;
+  --card: #19191c;
+  --primary: #ededf0;
+  --primary-foreground: #161618;
+  --muted: #27272c;
+  --muted-foreground: #a3a3ae;
+  --border: #333338;
+}
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+.studio-shell {
+  height: 100dvh;
+  max-width: none;
+  padding: 0 24px 18px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.studio-header {
+  height: 60px;
+  flex-shrink: 0;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.workspace-heading {
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+.title-row {
+  margin-bottom: 2px;
+}
+.title-row h1 {
+  font-size: 21px;
+  letter-spacing: -0.6px;
+}
+.workspace-heading p {
+  font-size: 12px;
+}
+.workspace {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: 360px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 20px;
+}
+.editor-panels {
+  min-height: 0;
+  overflow: hidden;
+}
+.editor-tabs {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.editor-tabs > [data-slot='tabs-list'] {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+.editor-tabs [data-slot='tabs-trigger'] {
+  min-height: 36px;
+  flex: 1;
+}
+.editor-tabs > [data-slot='tabs-content'] {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: none;
+}
+.editor-tabs > [data-slot='tabs-content']::-webkit-scrollbar {
+  display: none;
+}
+.editor-tabs [data-slot='card'] {
+  gap: 18px;
+  padding-block: 20px;
+  box-shadow: none;
+}
+.editor-tabs [data-slot='card-header'],
+.editor-tabs [data-slot='card-content'] {
+  padding-inline: 20px;
+}
+.preview-panel {
+  position: static;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.preview-toolbar {
+  min-height: 52px;
+  flex-shrink: 0;
+  padding: 4px 18px;
+  flex-wrap: nowrap;
+}
+.preview-zoom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 230px;
+  font-size: 12px;
+}
+.preview-zoom output {
+  width: 38px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+.preview-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px 10px;
+  background: var(--background);
+}
+.preview-player {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.playback-panel {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+.playback-heading {
+  margin-bottom: 4px;
+}
+.runtime-controls {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.playback-hint {
+  margin-top: 6px;
+  font-size: 11px;
+}
+.preview-footnote {
+  padding: 7px 12px;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.loading-preview {
+  min-height: 0;
+  overflow: hidden;
+}
+.studio-shell > [role='alert'] {
+  max-height: 160px;
+  flex-shrink: 0;
+  overflow: auto;
+  scrollbar-width: none;
+}
+@media (max-width: 1000px) {
+  .workspace {
+    grid-template-columns: 310px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .studio-shell {
+    padding-inline: 16px;
+  }
+  .preview-zoom {
+    width: 170px;
+  }
+  .preview-title h2 {
+    display: none;
+  }
+  .runtime-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .studio-shell {
+    padding: 0 10px 10px;
+  }
+  .studio-header {
+    height: 54px;
+  }
+  .studio-brand > span,
+  .header-actions > [data-slot='badge'],
+  .workspace-heading p {
+    display: none;
+  }
+  .studio-brand {
+    gap: 8px;
+  }
+  .header-actions {
+    gap: 6px;
+  }
+  .workspace-heading {
+    padding: 9px 0;
+  }
+  .title-row h1 {
+    font-size: 17px;
+  }
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(180px, 38%) minmax(0, 1fr);
+    gap: 10px;
+  }
+  .editor-tabs {
+    gap: 6px;
+  }
+  .editor-tabs [data-slot='card'] {
+    padding-block: 12px;
+    gap: 10px;
+  }
+  .editor-tabs [data-slot='card-header'],
+  .editor-tabs [data-slot='card-content'] {
+    padding-inline: 14px;
+  }
+  .preview-toolbar {
+    min-height: 44px;
+    padding-inline: 12px;
+  }
+  .preview-stage {
+    padding: 6px 12px;
+  }
+  .preview-footnote,
+  .playback-hint {
+    display: none;
+  }
+  .runtime-controls {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .runtime-controls [data-slot='button'] {
+    padding-inline: 4px;
+    font-size: 11px;
+    gap: 3px;
+  }
+}
+
+.photo-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.photo-picker > button {
+  flex-shrink: 0;
+}
+.photo-selection {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  font-size: 12px;
 }
