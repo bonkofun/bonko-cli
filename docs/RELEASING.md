@@ -49,6 +49,8 @@ sh install.sh --archive /absolute/path/bonko-cli-X.Y.Z.tgz \
 /tmp/bonko-install/bin/bonko version
 ```
 
+Run `bonko upgrade` to install the latest stable release into the active installation. It preserves custom prefix/bin paths and existing project pins, and does not downgrade a newer installation. Older CLI releases without this command must use the shell installer.
+
 Run `bonko use X.Y.Z` to select an already-installed release. To install a missing version, use its release-specific installer URL. Version selection verifies the target before replacing the command and preserves project pins.
 
 SIGINT/SIGTERM clean interrupted installation staging. After a hard kill, download the installer and retry with `sh install.sh --recover-lock` plus the original prefix/options. Recovery refuses a live PID, a different hostname, malformed metadata or symlink locks. Unknown owners and interrupted recovery locks require manual inspection. Old installations may lack owner metadata, so they cannot be automatically recovered.

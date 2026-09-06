@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { assertTemplateGuidance } from './helpers/template-guidance.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -128,6 +129,30 @@ test(
       assert.equal(
         JSON.parse(await run(executable, ['version', '--json'], parent)).version,
         packageInfo.version,
+      );
+      const installedRoot = path.join(
+        prefix,
+        'versions',
+        packageInfo.version,
+        'node_modules/@bonkofun/cli',
+      );
+      await access(path.join(installedRoot, 'scripts/install.mjs'));
+      await access(path.join(installedRoot, 'scripts/upgrade-install.mjs'));
+      assert.match(await run(executable, ['help', 'upgrade'], parent), /latest stable/);
+      const { upgrade } = await import(
+        pathToFileURL(path.join(installedRoot, 'dist-cli/upgrade.js')).href
+      );
+      assert.equal(
+        (
+          await upgrade(installedRoot, executable, packageInfo.version, {
+            latestRelease: async () => ({
+              tag_name: `v${packageInfo.version}`,
+              draft: false,
+              prerelease: false,
+            }),
+          })
+        ).upgraded,
+        false,
       );
       await run(executable, ['new', 'release-note'], parent);
       const project = path.join(parent, 'release-note');

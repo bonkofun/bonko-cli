@@ -5,6 +5,7 @@ import { packageMetadata } from './engine/package-metadata.js';
 import { createProject, findProject, packageInfo, safeDirectory, toolRoot } from './project.js';
 
 const descriptions: Record<string, string> = {
+  upgrade: 'bonko upgrade                Install and select the latest stable CLI release',
   use: 'bonko use <version>          Select an already-installed CLI version',
   new: 'bonko new <name>             Create an independent template project',
   dev: 'bonko dev [--port 4173] [--no-open]  Preview and rebuild on source changes',
@@ -94,6 +95,16 @@ export async function main(args: string[]) {
       value,
       `bonko ${value.version}\nSDK ${value.sdkVersion}\nNode ${value.nodeVersion}`,
       json,
+    );
+    return;
+  }
+  if (command === 'upgrade') {
+    const { upgrade } = await import('./upgrade.js');
+    const result = await upgrade(toolRoot, process.argv[1], packageInfo.version);
+    console.log(
+      result.upgraded
+        ? `Upgraded to Bonko ${result.version}. Existing projects keep their pinned CLI version; use bonko use <version> when needed.`
+        : `Bonko ${result.version} is already current or newer than the latest release (${result.latestVersion}).`,
     );
     return;
   }

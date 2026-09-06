@@ -19,7 +19,9 @@
     "README.md",
     "PROVENANCE.md",
     "npm-shrinkwrap.json",
-    "LICENSE"
+    "LICENSE",
+    "scripts/install.mjs",
+    "scripts/upgrade-install.mjs"
   ],
   "scripts": {
     "build": "node scripts/build-cli.mjs && node scripts/build-studio.mjs",

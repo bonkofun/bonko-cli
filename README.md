@@ -51,10 +51,23 @@ Edit text, select a local photo and adjust its crop in Studio. Choose **Apply co
 | `bonko pack`                      | Run checks again and create a `.bonko.zip` delivery package         |
 | `bonko browser install`           | Download Chromium ahead of time                                     |
 | `bonko help [command]`            | Show help; also supports `-h` and `--help`                          |
+| `bonko upgrade`                   | Install and select the latest stable CLI release                    |
 | `bonko use <version>`             | Select a verified, already-installed CLI release                    |
 | `bonko version`                   | Show CLI, SDK and Node versions; also supports `-v` and `--version` |
 
 `new`, `build`, `check`, `pack` and `version` accept `--json`. Failures exit with code 1. Use `check/pack --no-download` to forbid automatic browser downloads. On Linux, install any missing browser system libraries according to Playwright's error message; the CLI does not elevate privileges automatically.
+
+## Upgrade
+
+```sh
+bonko upgrade
+```
+
+Checks the latest stable GitHub release and upgrades the installation used by the active `bonko` command. It preserves custom installation and command directories, verifies the downloaded archive checksum, and uses the existing staged installer and installation lock. Failed downloads or installation leave the current command active. If the installed version is current or newer, no installation runs.
+
+Requires network access, npm, curl and write access to the installation. System installations may require the same privileges used during installation; the command does not invoke sudo automatically. Workspace checkouts cannot upgrade a global installation. Previous versions remain installed for `bonko use <version>`.
+
+Existing projects retain their `bonko.json` version pin and files, including skills. Upgrade does not migrate projects. Older CLI releases without this command must first use the shell installer above.
 
 ## Template files and components
 
