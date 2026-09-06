@@ -38,6 +38,19 @@ test(
     try {
       const project = await createProject('preview-note', parent);
       server = await standaloneServerFor(project.root, project.slug, toolRoot, 0);
+      const occupiedPort = Number(new URL(server.origin).port);
+      await assert.rejects(
+        standaloneServerFor(project.root, project.slug, toolRoot, occupiedPort),
+        (error) => {
+          assert.equal(error.code, 'EADDRINUSE');
+          assert.match(error.message, /already in use/);
+          assert.match(error.message, /bonko dev --port/);
+          assert.match(error.message, /kill [1-9]|lsof -nP/);
+          assert.match(error.message, /No process was stopped/);
+          return true;
+        },
+      );
+      assert.equal((await fetch(server.origin + '/')).status, 200);
       assert.equal((await fetch(server.origin + '/__bonko/preview')).status, 403);
       assert.equal(
         (await fetch(server.origin + '/', { headers: { Origin: 'https://example.test' } })).status,

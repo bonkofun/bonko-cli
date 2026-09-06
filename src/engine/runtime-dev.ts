@@ -1,7 +1,9 @@
 import type { AddressInfo } from 'node:net';
 import type { ServerResponse } from 'node:http';
 import type { FSWatcher } from 'node:fs';
-import { errorMessage } from '../errors.js';
+import { errorCode, errorMessage } from '../errors.js';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { RuntimeBuildError } from './runtime-build.js';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -160,6 +162,32 @@ export async function standaloneServerFor(
     };
   } catch (error) {
     await close();
+    if (errorCode(error) === 'EADDRINUSE') {
+      let stopHint = `Find the listener: lsof -nP -iTCP:${port} -sTCP:LISTEN`;
+      try {
+        const { stdout } = await promisify(execFile)(
+          'lsof',
+          ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'],
+          { timeout: 2000, maxBuffer: 16384 },
+        );
+        const pids = [...new Set(stdout.trim().split(/\s+/))];
+        if (pids.length && pids.every((pid) => /^[1-9]\d*$/.test(pid))) {
+          stopHint = `Listening process${pids.length > 1 ? 'es' : ''}: ${pids.join(', ')}.\nIf safe to stop, run in your terminal: kill ${pids.join(' ')}`;
+        }
+      } catch {
+        // lsof is optional; an alternate port works without process inspection.
+      }
+      const alternate = port === 65535 ? 4173 : port + 1;
+      throw Object.assign(
+        new Error(
+          `Port ${port} is already in use on 127.0.0.1.\n` +
+            `If this is your existing Studio, open http://127.0.0.1:${port}/\n` +
+            `Start another preview: bonko dev --port ${alternate}\n` +
+            `${stopHint}\nThen retry bonko dev --port ${port}. No process was stopped.`,
+        ),
+        { code: 'EADDRINUSE' },
+      );
+    }
     throw error;
   }
 }

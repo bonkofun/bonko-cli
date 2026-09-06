@@ -76,6 +76,10 @@ Requires network access, npm, curl and write access to the installation. System 
 
 Existing projects retain their `bonko.json` version pin and files, including skills. After upgrading, run `bonko dev` in the existing project: this CLI accepts projects created with 0.1.0–0.1.3 as well as its own version. Compatible projects use the active CLI and its updated Studio without editing configuration or installing the older CLI. Compatibility is explicitly reviewed, not inferred from a shared major/minor number. Unknown or unsupported versions still require `bonko use <version>` (install that release first if missing).
 
+### Preview port already in use
+
+If port 4173 is occupied, `bonko dev` reports the existing address and an alternate command such as `bonko dev --port 4174`. If the listener is your existing Studio, keep using its browser page. Where `lsof` is available, the error includes the listening PID and a `kill <PID>` command to run manually after confirming it is safe to stop; otherwise it shows the listener lookup command. Bonko never kills the process automatically. After stopping it, retry the original command. Another occupied port produces the same guidance.
+
 ### Upgrading older CLI versions
 
 If `bonko upgrade` reports an unknown command, your CLI predates this feature. Once a release containing it is published, rerun the latest-release installer:
