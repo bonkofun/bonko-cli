@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
-import { createProject, toolRoot } from '../dist-cli/project.js';
+import { createProject, toolRoot, packageInfo } from '../dist-cli/project.js';
 import { standaloneServerFor } from '../engine/runtime-dev.mjs';
 
 async function run(file,args,cwd) {
@@ -52,16 +52,17 @@ test('real release installs without source repos, then new/build/dev/check/pack 
   const parent=await mkdtemp(path.join(tmpdir(),'bonko-cli-release-'));
   try {
     await run(process.execPath,['scripts/release.mjs'],toolRoot);
-    const archive=path.join(toolRoot,'release/bonko-cli-0.1.0.tgz');
+    const archive=path.join(toolRoot,`release/bonko-cli-${packageInfo.version}.tgz`);
     const digest=createHash('sha256').update(await readFile(archive)).digest('hex');
     const prefix=path.join(parent,'工具 space');
     const installArgs=[path.join(toolRoot,'install.sh'),'--archive',archive,'--sha256',digest,'--prefix',prefix];
     await run('/bin/sh',installArgs,parent);
     const executable=path.join(prefix,'bin/bonko');
     assert.match(await run(executable,['help'],parent),/bonko build/);
-    await access(path.join(prefix,'versions/0.1.0/node_modules/@bonkofun/cli/npm-shrinkwrap.json'));
+    await access(path.join(prefix,`versions/${packageInfo.version}/node_modules/@bonkofun/cli/npm-shrinkwrap.json`));
+    assert.match(await readFile(path.join(prefix,`versions/${packageInfo.version}/node_modules/@bonkofun/cli/LICENSE`),'utf8'),/MIT License/);
     assert.match(await run(executable,['browser','install'],parent),/Chromium is ready/);
-    assert.equal(JSON.parse(await run(executable,['version','--json'],parent)).version,'0.1.0');
+    assert.equal(JSON.parse(await run(executable,['version','--json'],parent)).version,packageInfo.version);
     await run(executable,['new','release-note'],parent);
     const project=path.join(parent,'release-note');
     await assert.rejects(access(path.join(project,'node_modules')),{code:'ENOENT'});
@@ -75,6 +76,6 @@ test('real release installs without source repos, then new/build/dev/check/pack 
     assert.ok((await readdir(path.join(project,'.bonko/checks'))).includes('390.png'));
     // Idempotent installation keeps the same verified version and launcher.
     await run('/bin/sh',installArgs,parent);
-    assert.equal(JSON.parse(await run(executable,['version','--json'],parent)).version,'0.1.0');
+    assert.equal(JSON.parse(await run(executable,['version','--json'],parent)).version,packageInfo.version);
   } finally { await rm(parent,{recursive:true,force:true}); }
 });

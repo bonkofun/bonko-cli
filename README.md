@@ -1,26 +1,37 @@
 # Bonko CLI
 
-独立的 Bonko 模板开发工具。使用已有 Node.js，一条命令安装 CLI 后，即可创建、预览、构建、检查和打包模板，无需克隆 Studio 或为每个模板安装依赖。
+[![CI](https://github.com/bonkofun/bonko-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/bonkofun/bonko-cli/actions/workflows/ci.yml)
+[![Release workflow](https://github.com/bonkofun/bonko-cli/actions/workflows/release.yml/badge.svg)](https://github.com/bonkofun/bonko-cli/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/bonkofun/bonko-cli)](https://github.com/bonkofun/bonko-cli/releases/latest)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev/)
+[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-Studio-000000?logo=shadcnui&logoColor=white)](https://ui.shadcn.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 安装要求
+Create, preview, build, check and package standalone Bonko templates. Install the CLI once using your existing Node.js installation; each template works without its own dependency installation or a Studio checkout.
 
-- Node.js **≥ 22.12.0**，以及能正常运行的 npm。
-- 网络安装需要 curl；首次浏览器检查需要下载 Chromium。
-- Shell 安装器面向 macOS / Linux；Windows 安装尚未验证。
+## Install
 
-安装器先检查 Node 和 npm。不存在、版本过低或无法运行时直接退出，并显示修复提示；不会自动安装 Node 或在版本检查失败时下载、写入工具文件。
+Requires **Node.js >= 22.12.0**, working **npm**, and **curl** for downloads. The shell installer supports macOS and Linux; Windows installation is not verified. Chromium is downloaded on the first browser check if needed.
 
-默认安装到 `~/.bonko`，命令位于 `~/.bonko/bin/bonko`。无需 sudo；显式使用 root 安装时，工具位于 `/usr/local/share/bonko`，命令位于 `/usr/local/bin/bonko`。
-
-**当前尚未发布在线安装地址。** 发行包上传到 HTTPS 地址后，可这样安装（替换示例域名及版本目录）：
+Install the latest published release:
 
 ```sh
-curl -fsSL https://your-domain.example/bonko/v0.1.0/install.sh | sh
+curl -fsSL https://github.com/bonkofun/bonko-cli/releases/latest/download/install.sh | sh
 ```
 
-发布时通过 `npm run release -- --base-url https://your-domain.example/bonko/v0.1.0` 将下载地址写入安装器。也可通过安装器 `--base-url` 或 `BONKO_RELEASE_BASE_URL` 指定。安装完成会检查 PATH；若当前终端找不到 bonko，按提示加入目录或使用完整路径。
+These download URLs become available after the first successful tag release. To install a specific version, replace `v0.1.0` below with its release tag:
 
-## 使用
+```sh
+curl -fsSL https://github.com/bonkofun/bonko-cli/releases/download/v0.1.0/install.sh | sh
+```
+
+The installer checks Node and npm first, stops with an actionable error if either is missing or incompatible, and does not install Node automatically. It verifies the package SHA-256 checksum and installs pinned dependencies with npm lifecycle scripts disabled.
+
+The default location is `~/.bonko`, with the command at `~/.bonko/bin/bonko`. Follow the printed PATH instructions if necessary. For a system-wide installation, use `| sudo sh` instead of `| sh`; Node and npm must also be available on sudo's PATH. Root installs use `/usr/local/share/bonko` and `/usr/local/bin/bonko`.
+
+## Use
 
 ```sh
 bonko new birthday-card
@@ -28,69 +39,90 @@ cd birthday-card
 bonko dev
 ```
 
-在 Studio 中编辑文案、选择本地照片和裁切，点 **Apply content and crop** 应用，使用 **Play / Pause / View message / Replay** 验证。保存源码自动重建；构建错误会停止旧预览，修复后恢复。
+Edit text, select a local photo and adjust its crop in Studio. Choose **Apply content and crop**, then verify playback with **Play**, **Pause**, **View message** and **Replay**. Source edits rebuild automatically; a build error stops the old preview until corrected.
 
-| 命令 | 作用 |
+| Command | Purpose |
 |---|---|
-| `bonko new <name>` | 创建独立模板目录，不覆盖已有文件 |
-| `bonko dev` | 启动本地 Studio 并打开浏览器 |
-| `bonko dev --port 4175 --no-open` | 指定端口，不自动打开浏览器 |
-| `bonko build` | 构建运行代码，不进行浏览器验收、不输出交付 ZIP |
-| `bonko check` | 构建并执行完整 Chromium 检查 |
-| `bonko pack` | 重新检查并生成 `.bonko.zip` |
-| `bonko browser install` | 提前准备检查用 Chromium |
-| `bonko help [command]` | 查看命令说明，支持 `-h` / `--help` |
-| `bonko version` | 查看 CLI、SDK 和 Node 版本，支持 `-v` / `--version` |
+| `bonko new <name>` | Create a standalone project without overwriting existing files |
+| `bonko dev` | Start Studio and open the browser |
+| `bonko dev --port 4175 --no-open` | Choose a port without opening the browser |
+| `bonko build` | Compile runtime files without browser checks or a delivery ZIP |
+| `bonko check` | Build and run the full Chromium checks |
+| `bonko pack` | Run checks again and create a `.bonko.zip` delivery package |
+| `bonko browser install` | Download Chromium ahead of time |
+| `bonko help [command]` | Show help; also supports `-h` and `--help` |
+| `bonko version` | Show CLI, SDK and Node versions; also supports `-v` and `--version` |
 
-`new/build/check/pack/version` 支持 `--json`；失败退出码为 1。`check/pack --no-download` 禁止自动下载浏览器，缺失时返回可操作的错误。Linux 若缺少浏览器系统库，需按 Playwright 错误提示安装，CLI 不自动提权。
+`new`, `build`, `check`, `pack` and `version` accept `--json`. Failures exit with code 1. Use `check/pack --no-download` to forbid automatic browser downloads. On Linux, install any missing browser system libraries according to Playwright's error message; the CLI does not elevate privileges automatically.
 
-## 项目结构
+## Template files and components
 
 ```text
 birthday-card/
-  bonko.json          CLI 版本约束
-  manifest.json       模板配置、能力和素材清单
-  src/main.tsx        模板入口和自定义组件
-  assets/             声明过的图片、短音频
-  test.json           键盘揭晓按钮名称
-  LICENSE.md          素材与代码来源
-  DEVELOPMENT.md      完整协议与开发说明
-  tsconfig.json       编辑器类型提示
-  .bonko/build/       按摘要保存的构建结果
-  .bonko/checks/      验收报告与截图
-  dist/              通过验收的交付包
+  bonko.json          Pinned CLI version
+  manifest.json       Template metadata, configuration and asset declarations
+  src/main.tsx        Template entry and custom components
+  assets/             Declared images and short audio
+  test.json           Keyboard reveal button name
+  LICENSE.md          Code and asset attribution
+  DEVELOPMENT.md      Full protocol and authoring guide
+  tsconfig.json       Editor type resolution
+  .bonko/build/       Build output, grouped by digest
+  .bonko/checks/      Reports and screenshots
+  dist/              Verified delivery packages
 ```
 
-命令可从项目的子目录运行。构建使用 CLI 安装中的固定依赖，不读取项目的 Vite 配置或环境文件。`bonko.json` 固定 CLI 版本，不匹配时提示安装对应版本；当前不自动下载旧 CLI。
+Commands also work from project subdirectories. Builds use the CLI's fixed dependencies, not project Vite configuration or environment files. `bonko.json` pins the CLI version; install that version if it differs. Editor paths refer to the local CLI installation and may need updating when moving a project to another computer; CLI builds resolve dependencies independently.
 
-## 能用什么
+Templates may import `react`, `react/jsx-runtime`, `react-dom/client`, `motion/react`, `@bonko/template-sdk/runtime-client`, and relative files inside `src/`. Use native DOM/CSS, declared Canvas/WebGL capabilities, and SDK-managed short audio. Every template must support a complete static state, pause, cleanup, reduced motion and keyboard interaction.
 
-模板允许导入 `react`、`react/jsx-runtime`、`react-dom/client`、`motion/react`、`@bonko/template-sdk/runtime-client` 及模板 `src/` 内的相对路径。可使用原生 DOM/CSS，以及声明过能力的 Canvas/WebGL 和 SDK 管理的短音频。
+Studio uses React, Vite, Tailwind CSS, shadcn/ui, Tabler Icons and a phone frame. Those Studio dependencies are not automatically allowed in templates. See the [template protocol](docs/PROTOCOL.md) for the full contract, including the distinction between SDK package version `0.2.3` and manifest runtime version `0.2.0`.
 
-shadcn/ui、Tailwind、Tabler 和手机壳用于 Studio 界面，不自动成为模板允许依赖。模板必须提供完整静态终态，遵守暂停、清理、减少动态和键盘操作；详细约束见 [协议](docs/PROTOCOL.md)。
-
-新项目的编辑器路径指向当前 CLI 安装目录；跨机器移动时应更新这些路径。CLI 构建独立解析依赖，不依赖编辑器路径。
-
-## 开发与发行 CLI
+## Develop and verify the CLI
 
 ```sh
 npm ci --ignore-scripts
 npm run build
 npm run typecheck
+node bin/bonko.mjs browser install
 npm test
+```
+
+Use `node bin/bonko.mjs` to run the workspace CLI. Tests include real browser checks and installation of the packaged release. CI verifies Linux and macOS on the configured Node versions.
+
+## Build a release
+
+```sh
 npm run release
 ```
 
-测试包含真实浏览器和发行包安装；运行前可执行 `node bin/bonko.mjs browser install`。开发者通过 `node bin/bonko.mjs` 使用工作区 CLI。
+Local packaging produces `release/install.sh`, `release/bonko-cli-<version>.tgz`, and its `.sha256` file. It does not upload files or publish to npm. For a configured download host, pass `-- --base-url https://example.com/releases/v0.1.0`; the installer also accepts `--base-url` or `BONKO_RELEASE_BASE_URL`.
 
-发行产物位于 `release/`：安装器、`bonko-cli-<version>.tgz` 和 SHA-256 校验文件。依赖版本由 `npm-shrinkwrap.json` 固定；安装禁用 npm 生命周期脚本，安装完通过版本自检后才切换命令入口。校验防止下载损坏，发行来源的可信性依赖 HTTPS 主机。
+To publish on GitHub, update the package version, shrinkwrap and generated installer, commit them, then push a matching tag. For example, when releasing the next patch:
 
-本地验证安装（摘要从发行文件读取）：
+```sh
+npm version patch --no-git-tag-version
+node scripts/generate-installer.mjs
+# Review the version changes, run the checks above, and commit them.
+git add package.json npm-shrinkwrap.json install.sh
+git commit -m "chore(release): prepare next patch"
+git tag -a "v$(node -p 'require("./package.json").version')" -m "Bonko CLI release"
+git push origin HEAD
+git push origin "v$(node -p 'require("./package.json").version')"
+```
+
+For the first release, keep the current package version and tag its committed state as `v0.1.0`. The [Release workflow](.github/workflows/release.yml) runs on pushed `v*` tags, requires a stable `vX.Y.Z` matching the package and shrinkwrap, builds and tests the CLI, then publishes the three assets with installation instructions and generated release notes. Each installer embeds its own version-specific GitHub download URL. Existing releases are not overwritten; use a new version for changed bytes. Repository Actions must be enabled and permitted to create releases using `GITHUB_TOKEN`; no npm publishing token is needed.
+
+For a local installation test, use the digest from the generated checksum file:
 
 ```sh
 sh install.sh --archive /absolute/path/bonko-cli-0.1.0.tgz \
-  --sha256 <64位摘要> --prefix /tmp/bonko-install
+  --sha256 <64-character-sha256> --prefix /tmp/bonko-install
 /tmp/bonko-install/bin/bonko help
 ```
 
-发行命令只生成文件，不上传、不创建远程仓库、不发布 npm 包。模板 ZIP 仍需由后台审核。自动检查不代替素材授权、真实设备触摸和声音验收。
+Template ZIPs still require platform review. Automated checks do not replace asset licensing, real-device touch, audio or visual review.
+
+## License
+
+Bonko CLI is released under the [MIT License](LICENSE). Third-party dependencies and user-supplied assets retain their own licenses. See [source provenance](PROVENANCE.md).

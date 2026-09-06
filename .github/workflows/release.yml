@@ -1,0 +1,88 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6b34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.13.0
+          cache: npm
+          cache-dependency-path: npm-shrinkwrap.json
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs';
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(readFileSync('npm-shrinkwrap.json', 'utf8'));
+          if (!/^\d+\.\d+\.\d+$/.test(pkg.version) || process.env.RELEASE_TAG !== `v${pkg.version}`) {
+            throw new Error('Use a stable vX.Y.Z tag matching package.json.');
+          }
+          if (lock.version !== pkg.version || lock.packages[''].version !== pkg.version) {
+            throw new Error('Update npm-shrinkwrap.json before tagging.');
+          }
+          JS
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: git diff --exit-code
+      - name: Package version-pinned installer
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          npm run release -- --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}"
+          sh -n release/install.sh
+          cd release
+          sha256sum --check "bonko-cli-${RELEASE_TAG#v}.tgz.sha256"
+      - name: Publish release assets and installation instructions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cat > release/notes.md <<EOF_NOTES
+          ## Install
+
+          Requires Node.js >= 22.12.0 and npm on PATH. Supports macOS and Linux.
+          The installer checks prerequisites before downloading or installing anything.
+
+          \`\`\`sh
+          curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/install.sh | sh
+          \`\`\`
+
+          Default location: \`~/.bonko\`. Follow the printed PATH instructions, then run:
+
+          \`\`\`sh
+          bonko version
+          bonko new birthday-card
+          cd birthday-card
+          bonko dev
+          \`\`\`
+
+          Download \`install.sh\`, the versioned \`.tgz\` package and its \`.sha256\` checksum below.
+          The installer verifies the package checksum and keeps dependencies pinned.
+          See the [README](https://github.com/${GITHUB_REPOSITORY}/blob/${RELEASE_TAG}/README.md) for system-wide installation, checks and packaging.
+          EOF_NOTES
+          gh release create "$RELEASE_TAG" \
+            "release/install.sh" \
+            "release/bonko-cli-${RELEASE_TAG#v}.tgz" \
+            "release/bonko-cli-${RELEASE_TAG#v}.tgz.sha256" \
+            --verify-tag --title "Bonko CLI $RELEASE_TAG" \
+            --notes-file release/notes.md --generate-notes
