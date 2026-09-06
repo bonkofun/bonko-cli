@@ -39,7 +39,7 @@ cd birthday-card
 bonko dev
 ```
 
-Edit text, select a local photo and adjust its crop in Studio. Changes automatically update the complete authored card after a brief 100 ms input debounce; no Apply or View message click is needed. Editing during playback switches to the complete card. Choose **Replay**, then **Play** to test the animation again; **Pause** and **View message** remain available for playback testing. Source edits rebuild automatically; a build error stops the old preview until corrected.
+Edit text, select a local photo and adjust its crop in Studio. Changes automatically update the complete authored card after a brief 100 ms input debounce; no Apply or View message click is needed. The last complete card stays visible while the next preview loads, avoiding blank or generic-fallback flashes during repeated crop adjustments. Editing during playback switches to the complete card. Choose **Replay**, then **Play** to test the animation again; **Pause** and **View message** remain available for playback testing. Source edits rebuild automatically; a build error stops the old preview until corrected.
 
 | Command                           | Purpose                                                             |
 | --------------------------------- | ------------------------------------------------------------------- |

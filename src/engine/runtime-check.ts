@@ -69,7 +69,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         'SOURCE_CHANGED',
         'Source changed before browser verification; run check again',
       );
-    const frame = page.frameLocator('iframe');
+    const frame = page.frameLocator('[data-preview-layer="current"] iframe');
     const modeLabels = {
       reduced: 'Reduced motion',
       static: 'Authored static view',
@@ -81,7 +81,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       await page.getByRole('combobox', { name: 'Preview mode' }).click();
       await page.getByRole('option', { name: modeLabels[value], exact: true }).click();
     }
-    const status = page.locator('[data-playback] [role=status]');
+    const status = page.locator('[data-preview-layer="current"] [data-playback] [role=status]');
     const play = page.getByRole('button', { name: 'Play', exact: true });
     const skip = page.getByRole('button', { name: 'View message', exact: true });
     await expect(play).toBeEnabled();
@@ -200,7 +200,10 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         );
     }
     async function finalContent(name: string, message: string, sender: string) {
-      await expect(page.locator('[data-playback]')).toHaveAttribute('data-static', 'ready');
+      await expect(page.locator('[data-preview-layer="current"] [data-playback]')).toHaveAttribute(
+        'data-static',
+        'ready',
+      );
       await expect(page.locator('iframe')).toBeVisible();
       const child = page.frames().find((value) => value !== page.mainFrame());
       if (!child) throw new Error('Missing template frame');

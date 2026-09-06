@@ -47,7 +47,7 @@ test(
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await page.goto(server.origin);
-      const frame = page.frameLocator('iframe');
+      const frame = page.frameLocator('[data-preview-layer="current"] iframe');
       await expect(frame.getByRole('heading')).toHaveText('Alex');
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor');
       await expect(page.getByRole('button', { name: 'Apply content and crop' })).toHaveCount(0);
@@ -57,6 +57,38 @@ test(
       await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
       await expect(frame.locator('img')).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 0, 0)');
       await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      const cropSlider = page.getByRole('slider', { name: 'Horizontal crop', exact: true });
+      await cropSlider.press('ArrowRight');
+      await expect(frame.locator('img')).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 1, 0)');
+      // Every DOM mutation during repeated edits must retain a visible authored frame.
+      await page.evaluate(() => {
+        window.__previewGaps = [];
+        window.__previewObserver = new MutationObserver(() => {
+          const current = document.querySelector('[data-preview-layer="current"]');
+          const iframe = current?.querySelector('iframe');
+          if (!iframe || iframe.hidden || current.querySelector('.runtime-fallback')) {
+            window.__previewGaps.push('missing authored frame');
+          }
+        });
+        window.__previewObserver.observe(document.querySelector('.preview-stage'), {
+          subtree: true,
+          childList: true,
+          attributes: true,
+        });
+      });
+      for (let step = 0; step < 6; step++) {
+        await cropSlider.press('ArrowRight');
+        await expect(frame.locator('img')).toHaveCSS(
+          'transform',
+          `matrix(1.05, 0, 0, 1.05, ${step + 2}, 0)`,
+        );
+      }
+      const gaps = await page.evaluate(() => {
+        window.__previewObserver.disconnect();
+        return window.__previewGaps;
+      });
+      assert.deepEqual(gaps, []);
+      await expect(page.locator('iframe')).toHaveCount(1);
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
       await page.getByRole('button', { name: 'View message', exact: true }).click();

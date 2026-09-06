@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { RuntimeFrame } from '@bonko/template-sdk/runtime-react';
+import { StableRuntimePreview } from '@/components/stable-runtime-preview';
 import { loadRuntimeAssets } from '@bonko/template-sdk/runtime-assets';
 import type { TemplateSubmission } from '@bonko/template-sdk/submission';
 import { token } from 'virtual:standalone';
@@ -223,7 +223,7 @@ function Workspace({
       {applied.senderName ? <p>{applied.senderName}</p> : null}
     </article>
   );
-  const key = JSON.stringify([revision, applied, photoUrl, mode]);
+  const key = JSON.stringify([revision, applied, photoUrl, mode, editing]);
   return (
     <div className="workspace">
       <aside className="editor-panels" aria-label="Preview inputs">
@@ -442,9 +442,9 @@ function Workspace({
               </div>
             </>
           ) : (
-            <RuntimeFrame
+            <StableRuntimePreview
               authoredStatic
-              key={key}
+              previewKey={key}
               title="Template preview"
               src={
                 mode === 'player-error'
@@ -563,7 +563,7 @@ function Workspace({
                   </div>
                 </div>
               )}
-            </RuntimeFrame>
+            </StableRuntimePreview>
           )}
         </div>
         <p className="preview-footnote">Save source files to rebuild the preview automatically.</p>
