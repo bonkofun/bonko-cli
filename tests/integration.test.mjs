@@ -38,6 +38,19 @@ test(
     try {
       const project = await createProject('preview-note', parent);
       server = await standaloneServerFor(project.root, project.slug, toolRoot, 0);
+      const occupiedPort = Number(new URL(server.origin).port);
+      await assert.rejects(
+        standaloneServerFor(project.root, project.slug, toolRoot, occupiedPort),
+        (error) => {
+          assert.equal(error.code, 'EADDRINUSE');
+          assert.match(error.message, /already in use/);
+          assert.match(error.message, /bonko dev --port/);
+          assert.match(error.message, /kill [1-9]|lsof -nP/);
+          assert.match(error.message, /No process was stopped/);
+          return true;
+        },
+      );
+      assert.equal((await fetch(server.origin + '/')).status, 200);
       assert.equal((await fetch(server.origin + '/__bonko/preview')).status, 403);
       assert.equal(
         (await fetch(server.origin + '/', { headers: { Origin: 'https://example.test' } })).status,
@@ -306,6 +319,76 @@ test(
         packageInfo.version,
       );
     } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'sound preference survives static editing and replay and reaches the audio host',
+  { timeout: 60000 },
+  async () => {
+    const parent = await mkdtemp(path.join(tmpdir(), 'bonko-audio-preview-'));
+    let server, browser;
+    try {
+      const project = await createProject('sound-note', parent);
+      const manifestFile = path.join(project.root, 'manifest.json');
+      const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
+      manifest.capabilities = ['audio'];
+      await writeFile(manifestFile, JSON.stringify(manifest));
+      const sourceFile = path.join(project.root, 'src/main.tsx');
+      const source = await readFile(sourceFile, 'utf8');
+      await writeFile(
+        sourceFile,
+        source.replace(
+          "if (runtime.state === 'running') runtime.complete();",
+          "if (runtime.state === 'running') { runtime.report('waiting'); runtime.audio.tone(440, 100); }",
+        ),
+      );
+      server = await standaloneServerFor(project.root, project.slug, toolRoot, 0);
+      browser = await chromium.launch();
+      const page = await browser.newPage();
+      await page.addInitScript(() => {
+        window.__tones = 0;
+        const original = AudioContext.prototype.createOscillator;
+        AudioContext.prototype.createOscillator = function () {
+          window.__tones++;
+          return original.call(this);
+        };
+      });
+      await page.goto(server.origin);
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Sound test');
+      await expect(
+        page.locator('[data-preview-layer="current"] [data-static="ready"]'),
+      ).toBeVisible();
+      await page.getByRole('tab', { name: 'Audio', exact: true }).click();
+      await page.getByRole('button', { name: 'Enable sound', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Mute sound', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await expect(page.getByText('Sound is enabled.', { exact: false })).toBeVisible();
+      assert.equal(await page.evaluate(() => window.__tones), 0);
+      for (let run = 1; run <= 2; run++) {
+        await page.getByRole('button', { name: 'Replay', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Mute sound', exact: true })).toBeVisible();
+        await page.getByRole('button', { name: 'Play', exact: true }).click();
+        await expect.poll(() => page.evaluate(() => window.__tones)).toBe(run);
+      }
+      await page.getByRole('button', { name: 'Mute sound', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Enable sound', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+      await page.getByRole('button', { name: 'Replay', exact: true }).click();
+      await page.getByRole('button', { name: 'Play', exact: true }).click();
+      await expect(
+        page.locator('[data-preview-layer="current"] [data-playback="waiting"]'),
+      ).toBeVisible();
+      assert.equal(await page.evaluate(() => window.__tones), 2);
+    } finally {
+      await browser?.close();
+      await server?.close();
       await rm(parent, { recursive: true, force: true });
     }
   },
