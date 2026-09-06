@@ -66,6 +66,8 @@ birthday-card/
   assets/             Declared images and short audio
   test.json           Keyboard reveal button name
   LICENSE.md          Code and asset attribution
+  AGENTS.md           Coding agent entry and workflow selection
+  .agents/skills/     Bundled template authoring and verification skills
   DEVELOPMENT.md      Full protocol and authoring guide
   tsconfig.json       Editor type resolution
   .bonko/build/       Build output, grouped by digest
@@ -78,6 +80,16 @@ Commands also work from project subdirectories. Builds use the CLI's fixed depen
 Templates may import `react`, `react/jsx-runtime`, `react-dom/client`, `motion/react`, `@bonko/template-sdk/runtime-client`, and relative files inside `src/`. Use native DOM/CSS, declared Canvas/WebGL capabilities, and SDK-managed short audio. Every template must support a complete static state, pause, cleanup, reduced motion and keyboard interaction.
 
 Studio uses React, Vite, Tailwind CSS, shadcn/ui, Tabler Icons and a phone frame. Those Studio dependencies are not automatically allowed in templates. See the [template protocol](docs/PROTOCOL.md) for the full contract, including the distinction between SDK package version `0.2.3` and manifest runtime version `0.2.0`.
+
+## Develop with a coding agent
+
+New projects include `bonko-template-author` and `bonko-template-verify` under `.agents/skills/`, plus AGENTS.md and a local protocol reference. Open the generated project directory in your agent and ask:
+
+> Read AGENTS.md. Use bonko-template-author to create a birthday card with a paper reveal, then use bonko-template-verify to check and package it.
+
+Agents that support skill discovery can load these workflows directly; other agents can read the Markdown files. No separate Studio repository or skill installation is needed. The skills guide development and review, while the CLI and SDK enforce checks. These files stay out of template delivery ZIPs.
+
+This behavior requires a CLI release containing the scaffold skills. Upgrading the CLI does not change existing projects. To add guidance to an older project, generate a temporary project with the appropriate CLI version and copy its AGENTS.md, DEVELOPMENT.md and `.agents/skills/` after reviewing compatibility and preserving any existing instructions. Do not rewrite the old project's CLI pin to bypass a version mismatch.
 
 ## Develop and verify the CLI
 

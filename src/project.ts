@@ -135,11 +135,16 @@ export async function createProject(name: string, parent = process.cwd()): Promi
       include: ['src'],
     }),
     '.gitignore': '.bonko/\ndist/\nnode_modules/\n.env*\n.DS_Store\n',
-    'AGENTS.md':
-      '# Bonko template\n\nRead DEVELOPMENT.md before editing. Use the supplied SDK, one photo and plain text.\nSupport render, renderStatic and dispose; preserve pause, reduced motion and keyboard access.\nRun bonko check and bonko pack before delivery. Do not change validators to pass checks.\nNo production credentials, network calls, arbitrary dependencies or automatic publishing.\n',
+    'AGENTS.md': await readFile(path.join(toolRoot, 'scaffolds/agent/AGENTS.md')),
     'DEVELOPMENT.md': await readFile(path.join(toolRoot, 'docs/PROTOCOL.md')),
-    'README.md': `# ${manifest.name}\n\nRun commands inside this directory:\n\n\`\`\`sh\nbonko dev\nbonko build\nbonko check\nbonko pack\n\`\`\`\n\nEdit src/main.tsx, manifest.json and assets/. Read DEVELOPMENT.md for the protocol.\nBuild output: .bonko/build/. Reports: .bonko/checks/. Delivery: dist/*.bonko.zip.\nThe editor paths in tsconfig.json refer to this CLI installation; update these paths after moving to another computer (CLI builds resolve dependencies independently).\n`,
+    'README.md': `# ${manifest.name}\n\nRun commands inside this directory:\n\n\`\`\`sh\nbonko dev\nbonko build\nbonko check\nbonko pack\n\`\`\`\n\nEdit src/main.tsx, manifest.json and assets/. Read DEVELOPMENT.md for the protocol.\n\nFor agent-assisted development, open this directory in your coding agent and ask it to read [AGENTS.md](AGENTS.md). The bundled [author skill](.agents/skills/bonko-template-author/SKILL.md) guides implementation; the [verify skill](.agents/skills/bonko-template-verify/SKILL.md) guides review and packaging. Agents with skill discovery can select these automatically; other agents can read the files directly. Example: "Read AGENTS.md and use bonko-template-author to create a birthday note with a paper reveal, then verify it."\n\nBuild output: .bonko/build/. Reports: .bonko/checks/. Delivery: dist/*.bonko.zip.\nThe editor paths in tsconfig.json refer to this CLI installation; update these paths after moving to another computer (CLI builds resolve dependencies independently).\n`,
   };
+  // Ship a finite set of template workflows, not this repository's maintainer skills.
+  for (const skill of ['bonko-template-author', 'bonko-template-verify']) {
+    files[`.agents/skills/${skill}/SKILL.md`] = await readFile(
+      path.join(toolRoot, 'scaffolds/agent/skills', skill, 'SKILL.md'),
+    );
+  }
   for (const [relative, data] of Object.entries(files)) {
     const file = path.join(root, relative);
     await mkdir(path.dirname(file), { recursive: true });

@@ -12,11 +12,11 @@ Bonko CLI is a local authoring tool. It creates independent template directories
 | `src/versions.ts`  | Verify and select an already-installed CLI release                      |
 | `src/engine/`      | Typed build pipeline, isolated preview servers and browser verification |
 | `app/`             | Studio client, shadcn components and phone-frame preview                |
-| `scaffolds/`       | Starter template source distributed with the CLI                        |
+| `scaffolds/`       | Starter source and agent guidance distributed with the CLI              |
 | `scripts/`         | Checked JavaScript for build, installation and release operations       |
 | `tests/`           | Command, filesystem, installer, release-gate and browser behavior tests |
 | `docs/PROTOCOL.md` | Template authoring contract                                             |
-| `.agents/skills/`  | Repository-scoped authoring and maintenance skills                      |
+| `.agents/skills/`  | CLI repository maintenance skills; not generated project skills         |
 
 `dist-cli/`, `studio-dist/` and `release/` are generated and excluded from Git. CLI builds clean the output directory first, so removed source cannot leak into a later release.
 
