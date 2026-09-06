@@ -1,4 +1,4 @@
-# Bonko CLI
+<h1 align="center">Bonko CLI</h1>
 
 [![CI](https://github.com/bonkofun/bonko-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/bonkofun/bonko-cli/actions/workflows/ci.yml)
 [![Release workflow](https://github.com/bonkofun/bonko-cli/actions/workflows/release.yml/badge.svg)](https://github.com/bonkofun/bonko-cli/actions/workflows/release.yml)
