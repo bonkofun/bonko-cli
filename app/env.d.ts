@@ -1,2 +1,4 @@
 /// <reference types="vite/client" />
-declare module "virtual:standalone" { export const token: string; }
+declare module 'virtual:standalone' {
+  export const token: string;
+}

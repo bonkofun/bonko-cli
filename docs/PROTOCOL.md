@@ -55,23 +55,23 @@ Source builds locally only. The platform does not install, build or execute uplo
 }
 ```
 
-| Field | Rule |
-|---|---|
-| `protocol` / `sdkVersion` | Exactly `3` / `"0.2.0"` for the current runtime contract |
-| `slug` | Lowercase kebab-case, starts with a letter, at most 80 characters; matches the directory name |
-| `version` | Template version in integer-major form, such as `1.0` or `2.0`; not arbitrary SemVer |
-| `name` / `author` / `description` | Nonempty; at most 80 / 80 / 500 characters respectively |
-| `templateType` | `static` or `interactive`; not a category |
-| `access` | `free` or `premium`; author suggestion confirmed during admin review, not payment activation |
-| `tags` | Up to 5 custom tags, each at most 20 characters; normalized, trimmed and deduplicated case-insensitively |
-| `cover` | Logical ID of a declared image, not a URL |
-| `assets` | 1–100 entries; IDs start with a lowercase letter, contain lowercase letters, digits or hyphens, and have at most 64 characters |
-| `capabilities` | Unique subset of `audio`, `canvas`, `webgl`; declare audio for recorded or synthesized sound |
-| `config` | At most 32 primitive values: strings, finite numbers or booleans; no nesting, HTML, URLs or scripts |
-| `sample` | Recipient name: 30 characters; message: 160; sender: 30; use an empty sender string to omit it |
-| `messagePresets` | 1–8 messages, each at most 160 characters |
-| `posterStyle` | Six-digit hexadecimal `background`, `foreground` and `accent` colors |
-| `entry` / `stylesheet` | Entry is fixed to `runtime/entry.js`; the builder adds an optional stylesheet when CSS is emitted |
+| Field                             | Rule                                                                                                                           |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `protocol` / `sdkVersion`         | Exactly `3` / `"0.2.0"` for the current runtime contract                                                                       |
+| `slug`                            | Lowercase kebab-case, starts with a letter, at most 80 characters; matches the directory name                                  |
+| `version`                         | Template version in integer-major form, such as `1.0` or `2.0`; not arbitrary SemVer                                           |
+| `name` / `author` / `description` | Nonempty; at most 80 / 80 / 500 characters respectively                                                                        |
+| `templateType`                    | `static` or `interactive`; not a category                                                                                      |
+| `access`                          | `free` or `premium`; author suggestion confirmed during admin review, not payment activation                                   |
+| `tags`                            | Up to 5 custom tags, each at most 20 characters; normalized, trimmed and deduplicated case-insensitively                       |
+| `cover`                           | Logical ID of a declared image, not a URL                                                                                      |
+| `assets`                          | 1–100 entries; IDs start with a lowercase letter, contain lowercase letters, digits or hyphens, and have at most 64 characters |
+| `capabilities`                    | Unique subset of `audio`, `canvas`, `webgl`; declare audio for recorded or synthesized sound                                   |
+| `config`                          | At most 32 primitive values: strings, finite numbers or booleans; no nesting, HTML, URLs or scripts                            |
+| `sample`                          | Recipient name: 30 characters; message: 160; sender: 30; use an empty sender string to omit it                                 |
+| `messagePresets`                  | 1–8 messages, each at most 160 characters                                                                                      |
+| `posterStyle`                     | Six-digit hexadecimal `background`, `foreground` and `accent` colors                                                           |
+| `entry` / `stylesheet`            | Entry is fixed to `runtime/entry.js`; the builder adds an optional stylesheet when CSS is emitted                              |
 
 **Category is not an author manifest field.** After upload, an administrator selects a platform category; uncategorized templates cannot pass review. Category, template type, access and tags are separate dimensions. Do not add category, occasion, category codes or publication status to self-publish.
 

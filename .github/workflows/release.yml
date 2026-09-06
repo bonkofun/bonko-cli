@@ -9,41 +9,40 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  release:
+  validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.13.0
+      - name: Validate tag, lockfile and main ancestry
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/validate-release.mjs
+  checks:
+    needs: validate
+    uses: ./.github/workflows/verify.yml
+  release:
+    needs: [validate, checks]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24.13.0
           cache: npm
           cache-dependency-path: npm-shrinkwrap.json
-      - name: Validate release tag
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          node --input-type=module <<'JS'
-          import { readFileSync } from 'node:fs';
-          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-          const lock = JSON.parse(readFileSync('npm-shrinkwrap.json', 'utf8'));
-          if (!/^\d+\.\d+\.\d+$/.test(pkg.version) || process.env.RELEASE_TAG !== `v${pkg.version}`) {
-            throw new Error('Use a stable vX.Y.Z tag matching package.json.');
-          }
-          if (lock.version !== pkg.version || lock.packages[''].version !== pkg.version) {
-            throw new Error('Update npm-shrinkwrap.json before tagging.');
-          }
-          JS
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npm run build
-      - run: npm run typecheck
-      - run: npx playwright install --with-deps chromium
-      - run: npm test
-      - run: git diff --exit-code
       - name: Package version-pinned installer
         env:
           RELEASE_TAG: ${{ github.ref_name }}

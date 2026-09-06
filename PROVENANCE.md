@@ -8,3 +8,7 @@ remain the pinned npm distribution of `@bonko/template-sdk`, not copied SDK sour
 
 CLI-specific adaptations: flat template projects, tool-owned dependency resolution,
 prebuilt Studio assets, explicit build output and browser preparation.
+
+The local engine is now maintained as strict TypeScript under `src/engine/`.
+Third-party development skills retain their upstream licensing and revisions;
+see [docs/SKILLS.md](docs/SKILLS.md). They are not included in CLI release archives.

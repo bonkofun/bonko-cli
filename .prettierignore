@@ -1,0 +1,9 @@
+node_modules/
+dist-cli/
+studio-dist/
+release/
+.agents/skills/shadcn/
+.agents/skills/vercel-react-best-practices/
+.agents/skills/gh-fix-ci/
+npm-shrinkwrap.json
+install.sh
