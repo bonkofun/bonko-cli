@@ -40,6 +40,8 @@ Projects pin an exact CLI version. `bonko use <version>` changes the installatio
 
 The CLI package version, manifest protocol number, SDK npm release and manifest runtime contract version are separate values. See the protocol for their meanings.
 
+`src/upgrade.ts` resolves the latest stable GitHub release and checks the active installation and permissions. It invokes the distributed `scripts/upgrade-install.mjs` adapter, which reuses `scripts/install.mjs` with explicit existing prefix/bin paths and the fixed official release URL. The CLI forwards cancellation to the installer. Upgrades retain previous versions and never rewrite project pins. No remote installer script is evaluated.
+
 ## Build and preview
 
 The builder scans permitted files, enforces file/byte limits, rejects symlinks and unapproved imports, checks types and compiles with fixed options. It does not load author Vite configuration or environment files. A template package includes only declared assets, compiled runtime, reviewable source and attribution.
