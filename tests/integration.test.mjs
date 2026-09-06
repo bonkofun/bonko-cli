@@ -50,8 +50,20 @@ test(
       const frame = page.frameLocator('iframe');
       await expect(frame.getByRole('heading')).toHaveText('Alex');
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor');
-      await page.getByRole('button', { name: 'Apply content and crop' }).click();
+      await expect(page.getByRole('button', { name: 'Apply content and crop' })).toHaveCount(0);
       await expect(frame.getByRole('heading')).toHaveText('Taylor');
+      await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Live message');
+      await expect(frame.getByText('Live message', { exact: true })).toBeVisible();
+      await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
+      await expect(frame.locator('img')).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 0, 0)');
+      await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await page.getByRole('button', { name: 'Replay', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
+      await page.getByRole('button', { name: 'View message', exact: true }).click();
+      await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
+      await expect(frame.getByRole('heading')).toHaveText('Taylor again');
+      await expect(page.locator('[data-static="ready"]')).toBeVisible();
       for (const width of [375, 390, 430]) {
         await page.getByRole('radio', { name: `${width} pixels` }).click();
         await expect
@@ -71,7 +83,7 @@ test(
       await expect(page.getByRole('alert')).toContainText('not assignable', { timeout: 15000 });
       await expect(page.locator('iframe')).toHaveCount(0);
       await writeFile(source, original);
-      await expect(frame.getByRole('heading')).toHaveText('Taylor', { timeout: 15000 });
+      await expect(frame.getByRole('heading')).toHaveText('Taylor again', { timeout: 15000 });
       assert.deepEqual(errors, []);
     } finally {
       await browser?.close();

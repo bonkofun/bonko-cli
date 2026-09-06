@@ -5,7 +5,6 @@ import { loadRuntimeAssets } from '@bonko/template-sdk/runtime-assets';
 import type { TemplateSubmission } from '@bonko/template-sdk/submission';
 import { token } from 'virtual:standalone';
 import {
-  IconArrowRight,
   IconPlayerPlay,
   IconPlayerPause,
   IconRotateClockwise,
@@ -14,14 +13,7 @@ import {
   IconDeviceMobile,
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Field, FieldLabel, FieldDescription, FieldError, FieldGroup } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -171,10 +163,35 @@ function Workspace({
   const sample = preview.submission.sample;
   const [draft, setDraft] = useState(sample);
   const [crop, setCrop] = useState({ scale: 1, x: 0, y: 0 });
+  const [editing, setEditing] = useState(false);
   const [applied, setApplied] = useState({
     ...sample,
     photoTransform: 'translate(0px, 0px) scale(1)',
   });
+  // Coalesce typing and slider events without rebuilding the source preview.
+  useEffect(() => {
+    const timeout = setTimeout(
+      () =>
+        setApplied({
+          ...draft,
+          photoTransform: `translate(${crop.x}px, ${crop.y}px) scale(${crop.scale})`,
+        }),
+      100,
+    );
+    return () => clearTimeout(timeout);
+  }, [draft, crop]);
+  function editDraft(value: typeof draft) {
+    setEditing(true);
+    setDraft(value);
+  }
+  function replay() {
+    setApplied({
+      ...draft,
+      photoTransform: `translate(${crop.x}px, ${crop.y}px) scale(${crop.scale})`,
+    });
+    setEditing(false);
+    refresh();
+  }
   const [photo, setPhoto] = useState<File>();
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoError, setPhotoError] = useState('');
@@ -210,21 +227,11 @@ function Workspace({
   return (
     <div className="workspace">
       <aside className="editor-panels" aria-label="Preview inputs">
-        <form
-          className="editor-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setApplied({
-              ...draft,
-              photoTransform: `translate(${crop.x}px, ${crop.y}px) scale(${crop.scale})`,
-            });
-            refresh();
-          }}
-        >
+        <form className="editor-form" onSubmit={(event) => event.preventDefault()}>
           <Card>
             <CardHeader>
               <CardTitle>Make it personal</CardTitle>
-              <CardDescription>The details your recipient will see.</CardDescription>
+              <CardDescription>Changes appear automatically in the complete card.</CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup className="gap-5">
@@ -235,7 +242,7 @@ function Workspace({
                     required
                     maxLength={30}
                     value={draft.recipientName}
-                    onChange={(event) => setDraft({ ...draft, recipientName: event.target.value })}
+                    onChange={(event) => editDraft({ ...draft, recipientName: event.target.value })}
                   />
                 </Field>
                 <Field>
@@ -246,7 +253,7 @@ function Workspace({
                     maxLength={160}
                     className="min-h-24"
                     value={draft.message}
-                    onChange={(event) => setDraft({ ...draft, message: event.target.value })}
+                    onChange={(event) => editDraft({ ...draft, message: event.target.value })}
                   />
                   <FieldDescription className="text-right">
                     {draft.message.length} / 160
@@ -260,7 +267,7 @@ function Workspace({
                     id="sender"
                     maxLength={30}
                     value={draft.senderName}
-                    onChange={(event) => setDraft({ ...draft, senderName: event.target.value })}
+                    onChange={(event) => editDraft({ ...draft, senderName: event.target.value })}
                   />
                 </Field>
               </FieldGroup>
@@ -292,8 +299,8 @@ function Workspace({
                         return;
                       }
                       setPhotoError('');
+                      setEditing(true);
                       setPhoto(file);
-                      refresh();
                     }}
                   />
                   {photoError ? <FieldError id="photo-error">{photoError}</FieldError> : null}
@@ -322,20 +329,15 @@ function Workspace({
                       max={max}
                       step={step}
                       value={[crop[field]]}
-                      onValueChange={([value]) =>
-                        setCrop((previous) => ({ ...previous, [field]: value }))
-                      }
+                      onValueChange={([value]) => {
+                        setEditing(true);
+                        setCrop((previous) => ({ ...previous, [field]: value }));
+                      }}
                     />
                   </Field>
                 ))}
               </FieldGroup>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full" disabled={blocked}>
-                Apply content and crop
-                <IconArrowRight data-icon="inline-end" aria-hidden="true" />
-              </Button>
-            </CardFooter>
           </Card>
         </form>
         <Card>
@@ -350,6 +352,7 @@ function Workspace({
                 <Select
                   value={mode}
                   onValueChange={(value) => {
+                    setEditing(false);
                     setMode(value);
                     refresh();
                   }}
@@ -381,9 +384,7 @@ function Workspace({
                           .slice(0, 160),
                         senderName: '',
                       };
-                      setDraft(long);
-                      setApplied({ ...applied, ...long });
-                      refresh();
+                      editDraft(long);
                     }}
                   >
                     Maximum text / empty sender
@@ -391,9 +392,7 @@ function Workspace({
                   <Button
                     variant="ghost"
                     onClick={() => {
-                      setDraft(sample);
-                      setApplied({ ...applied, ...sample });
-                      refresh();
+                      editDraft(sample);
                     }}
                   >
                     Regular example
@@ -436,7 +435,7 @@ function Workspace({
                 <Badge variant="secondary">
                   {blocked ? 'Rebuilding preview' : 'Generic fallback'}
                 </Badge>
-                <Button variant="outline" disabled={blocked} onClick={refresh}>
+                <Button variant="outline" disabled={blocked} onClick={replay}>
                   <IconRotateClockwise aria-hidden="true" />
                   Replay
                 </Button>
@@ -453,7 +452,7 @@ function Workspace({
                   : preview.url
               }
               runtimeOrigin={preview.runtimeOrigin}
-              staticOnly={mode === 'static'}
+              staticOnly={mode === 'static' || (mode === 'interactive' && editing)}
               reducedMotion={mode === 'reduced'}
               fallback={fallback}
               load={(signal) => {
@@ -503,7 +502,7 @@ function Workspace({
                             ? 'error'
                             : (view.reason ?? (view.ready ? view.state : 'Loading template…'))}
                       </Badge>
-                      <Button variant="ghost" disabled={blocked} onClick={refresh}>
+                      <Button variant="ghost" disabled={blocked} onClick={replay}>
                         <IconRotateClockwise data-icon="inline-start" aria-hidden="true" />
                         Replay
                       </Button>
@@ -553,11 +552,13 @@ function Workspace({
                       </Button>
                     </div>
                     <p className="playback-hint">
-                      {view.state === 'waiting'
-                        ? 'Interact with the template inside the phone to continue.'
-                        : view.state === 'paused'
-                          ? 'Playback is paused. Continue when you’re ready.'
-                          : 'Play to start. View message to jump to the reveal.'}
+                      {editing && mode === 'interactive'
+                        ? 'Live editing · Changes appear automatically. Replay to test the animation.'
+                        : view.state === 'waiting'
+                          ? 'Interact with the template inside the phone to continue.'
+                          : view.state === 'paused'
+                            ? 'Playback is paused. Continue when you’re ready.'
+                            : 'Play to start. View message to jump to the reveal.'}
                     </p>
                   </div>
                 </div>

@@ -165,8 +165,11 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     await page.getByLabel('Name', { exact: true }).fill('Alex <test>');
     await page.getByLabel('Message', { exact: true }).fill('Your words stay text: <b>hello</b>');
     await page.getByLabel('Sender Optional', { exact: true }).fill('Sam');
-    await page.getByRole('button', { name: 'Apply content and crop' }).click();
+    await expect(
+      frame.getByText('Your words stay text: <b>hello</b>', { exact: true }),
+    ).toBeVisible();
     async function finish() {
+      await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect(play).toBeEnabled();
       await play.focus();
       await play.press('Enter');
