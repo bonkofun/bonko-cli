@@ -101,13 +101,24 @@ test(
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
       await expect(frame.getByRole('heading')).toHaveText('Taylor again');
       await expect(page.locator('[data-static="ready"]')).toBeVisible();
-      await page.getByRole('radio', { name: 'Dark theme', exact: true }).click();
+      await page.getByRole('button', { name: 'Switch to dark theme', exact: true }).click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-      await page.getByRole('radio', { name: 'Light theme', exact: true }).click();
+      await page.getByRole('button', { name: 'Switch to light theme', exact: true }).click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
       await page.getByRole('tab', { name: 'Audio', exact: true }).click();
       await expect(page.getByText('This template has no audio.', { exact: false })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Enable sound' })).toBeDisabled();
+      await page.getByRole('button', { name: 'Enter fullscreen preview', exact: true }).click();
+      await expect
+        .poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('aria-label')))
+        .toBe('Live preview');
+      await page.getByRole('button', { name: 'Exit fullscreen preview', exact: true }).click();
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+      await page.getByRole('button', { name: 'Enter fullscreen preview', exact: true }).click();
+      await page
+        .getByRole('button', { name: 'Exit fullscreen preview', exact: true })
+        .press('Escape');
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
       const originalSize = await page.locator('.phone-frame').boundingBox();
       await page.getByRole('slider', { name: 'Size', exact: true }).press('Home');
       await expect
@@ -131,8 +142,12 @@ test(
             ),
           )
           .toBe(true);
-        const device = await page.locator('.phone-frame').boundingBox();
-        assert.ok(device.height > 0 && device.y + device.height <= height);
+        await expect
+          .poll(async () => {
+            const device = await page.locator('.phone-frame').boundingBox();
+            return device.height > 0 && device.y + device.height <= height;
+          })
+          .toBe(true);
       }
       const source = path.join(project.root, 'src/main.tsx'),
         original = await readFile(source, 'utf8');

@@ -599,3 +599,54 @@ body,
   color: var(--muted-foreground);
   font-size: 12px;
 }
+
+.workspace-heading {
+  padding-block: 10px;
+}
+.preview-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.preview-player {
+  position: relative;
+}
+.playback-panel {
+  position: relative;
+  padding-top: 4px;
+}
+.playback-heading {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin: 0;
+  pointer-events: none;
+}
+.playback-heading > * {
+  pointer-events: auto;
+}
+.playback-hint {
+  display: none;
+}
+.preview-panel:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  background: var(--background);
+}
+.preview-panel:fullscreen .preview-stage {
+  padding-top: 8px;
+}
+.preview-panel:fullscreen .preview-footnote {
+  display: none;
+}
+@media (max-width: 700px) {
+  .preview-toolbar-actions {
+    gap: 4px;
+  }
+  .preview-zoom {
+    width: 160px;
+  }
+}

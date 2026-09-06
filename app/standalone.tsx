@@ -7,6 +7,8 @@ import type { RuntimeFrameControls } from '@bonko/template-sdk/runtime-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { token } from 'virtual:standalone';
 import {
+  IconMaximize,
+  IconMinimize,
   IconSun,
   IconMoon,
   IconPlayerPlay,
@@ -30,7 +32,6 @@ import {
   SelectGroup,
   SelectItem,
 } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -130,32 +131,20 @@ function Studio() {
           <span>Template Studio</span>
         </div>
         <div className="header-actions">
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={theme}
-            aria-label="Theme"
-            onValueChange={(value) => {
-              if (value) setTheme(value);
-            }}
+          <Button
+            variant="link"
+            size="icon"
+            className="size-11"
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
           >
-            <ToggleGroupItem
-              value="light"
-              aria-label="Light theme"
-              title="Light theme"
-              className="size-11"
-            >
+            {theme === 'dark' ? (
               <IconSun size={20} stroke={2} aria-hidden="true" />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="dark"
-              aria-label="Dark theme"
-              title="Dark theme"
-              className="size-11"
-            >
+            ) : (
               <IconMoon size={20} stroke={2} aria-hidden="true" />
-            </ToggleGroupItem>
-          </ToggleGroup>
+            )}
+          </Button>
           <Badge variant="outline">Local workspace</Badge>
         </div>
       </header>
@@ -165,9 +154,7 @@ function Studio() {
             <h1>{preview?.submission.name ?? 'Standalone template'}</h1>
             <Badge variant="secondary">Draft</Badge>
           </div>
-          <p>Edit the details. Try the experience. Make it feel right.</p>
         </div>
-        <p className="workspace-note">Isolated preview · No production connection</p>
       </div>
       {error ? (
         <Alert variant="destructive" className="mb-6">
@@ -245,6 +232,36 @@ function Workspace({
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoError, setPhotoError] = useState('');
   const [zoom, setZoom] = useState(100);
+  const previewPanel = useRef<HTMLElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState('');
+  useEffect(() => {
+    const sync = () => setFullscreen(document.fullscreenElement === previewPanel.current);
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && document.fullscreenElement === previewPanel.current) {
+        void document
+          .exitFullscreen()
+          .catch(() =>
+            setFullscreenError('Unable to exit fullscreen. Use the browser fullscreen control.'),
+          );
+      }
+    };
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('fullscreenchange', sync);
+      document.removeEventListener('keydown', escape);
+    };
+  }, []);
+  async function toggleFullscreen() {
+    setFullscreenError('');
+    try {
+      if (document.fullscreenElement === previewPanel.current) await document.exitFullscreen();
+      else await previewPanel.current?.requestFullscreen();
+    } catch {
+      setFullscreenError('Fullscreen is unavailable in this browser.');
+    }
+  }
   const [audioMuted, setAudioMuted] = useState(true);
   const controls = useRef<RuntimeFrameControls | null>(null);
   const observeControls = useCallback((view: RuntimeFrameControls) => {
@@ -524,23 +541,39 @@ function Workspace({
           </TabsContent>
         </Tabs>
       </aside>
-      <section className="preview-panel" aria-label="Live preview">
+      <section ref={previewPanel} className="preview-panel" aria-label="Live preview">
         <div className="preview-toolbar">
           <div className="preview-title">
             <IconDeviceMobile size={20} stroke={2} aria-hidden="true" />
             <h2>Live preview</h2>
           </div>
-          <div className="preview-zoom">
-            <label id="preview-size">Size</label>
-            <Slider
-              aria-labelledby="preview-size"
-              min={50}
-              max={100}
-              step={1}
-              value={[zoom]}
-              onValueChange={([value]) => setZoom(value)}
-            />
-            <output>{zoom}%</output>
+          <div className="preview-toolbar-actions">
+            <div className="preview-zoom">
+              <label id="preview-size">Size</label>
+              <Slider
+                aria-labelledby="preview-size"
+                min={50}
+                max={100}
+                step={1}
+                value={[zoom]}
+                onValueChange={([value]) => setZoom(value)}
+              />
+              <output>{zoom}%</output>
+            </div>
+            <Button
+              variant="link"
+              size="icon"
+              className="size-11"
+              aria-label={fullscreen ? 'Exit fullscreen preview' : 'Enter fullscreen preview'}
+              title={fullscreen ? 'Exit fullscreen preview (Esc)' : 'Enter fullscreen preview'}
+              onClick={() => void toggleFullscreen()}
+            >
+              {fullscreen ? (
+                <IconMinimize size={20} stroke={2} aria-hidden="true" />
+              ) : (
+                <IconMaximize size={20} stroke={2} aria-hidden="true" />
+              )}
+            </Button>
           </div>
         </div>
         <div className="preview-stage">
@@ -685,7 +718,12 @@ function Workspace({
             </StableRuntimePreview>
           )}
         </div>
-        <p className="preview-footnote">Save source files to rebuild the preview automatically.</p>
+        <p className="preview-footnote">Isolated preview · No production connection</p>
+        {fullscreenError ? (
+          <p role="alert" className="preview-footnote">
+            {fullscreenError}
+          </p>
+        ) : null}
       </section>
     </div>
   );
