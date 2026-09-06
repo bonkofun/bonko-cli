@@ -24,7 +24,7 @@ curl -fsSL https://github.com/bonkofun/bonko-cli/releases/latest/download/instal
 To install a specific published version:
 
 ```sh
-curl -fsSL https://github.com/bonkofun/bonko-cli/releases/download/v0.1.1/install.sh | sh
+curl -fsSL https://github.com/bonkofun/bonko-cli/releases/download/v0.1.2/install.sh | sh
 ```
 
 The installer checks Node and npm first, stops with an actionable error if either is missing or incompatible, and does not install Node automatically. It verifies the package SHA-256 checksum and installs pinned dependencies with npm lifecycle scripts disabled.
@@ -108,7 +108,7 @@ Use `node bin/bonko.mjs` to run the workspace CLI. Tests include real browser ch
 npm run release
 ```
 
-Local packaging produces `release/install.sh`, `release/bonko-cli-<version>.tgz`, and its `.sha256` file. It does not upload files or publish to npm. For a configured download host, pass `-- --base-url https://example.com/releases/v0.1.1`; the installer also accepts `--base-url` or `BONKO_RELEASE_BASE_URL`.
+Local packaging produces `release/install.sh`, `release/bonko-cli-<version>.tgz`, and its `.sha256` file. It does not upload files or publish to npm. For a configured download host, pass `-- --base-url https://example.com/releases/v0.1.2`; the installer also accepts `--base-url` or `BONKO_RELEASE_BASE_URL`.
 
 Develop on **dev** and submit a PR into **main**. Releases require a matching stable tag on a commit already merged to main, then all four Linux/macOS and Node verification jobs must pass before assets can be published. See [Contributing](CONTRIBUTING.md) for development and [Releasing](docs/RELEASING.md) for the exact version, tag and installation-recovery procedures.
 
