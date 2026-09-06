@@ -59,15 +59,31 @@ Edit text, select a local photo and adjust its crop in Studio. Choose **Apply co
 
 ## Upgrade
 
+Run the following from any directory to upgrade the installed CLI to the latest stable release and confirm the selected version:
+
 ```sh
 bonko upgrade
+bonko version
 ```
+
+`bonko upgrade` takes no version argument. To switch to a specific version already installed on your computer, use `bonko use <version>` instead.
 
 Checks the latest stable GitHub release and upgrades the installation used by the active `bonko` command. It preserves custom installation and command directories, verifies the downloaded archive checksum, and uses the existing staged installer and installation lock. Failed downloads or installation leave the current command active. If the installed version is current or newer, no installation runs.
 
 Requires network access, npm, curl and write access to the installation. System installations may require the same privileges used during installation; the command does not invoke sudo automatically. Workspace checkouts cannot upgrade a global installation. Previous versions remain installed for `bonko use <version>`.
 
-Existing projects retain their `bonko.json` version pin and files, including skills. Upgrade does not migrate projects. Older CLI releases without this command must first use the shell installer above.
+Existing projects retain their `bonko.json` version pin and files, including skills. Upgrade does not migrate projects. If an existing project requests its pinned version, select it with `bonko use <version>`; use the upgraded CLI when creating new projects.
+
+### Upgrading older CLI versions
+
+If `bonko upgrade` reports an unknown command, your CLI predates this feature. Once a release containing it is published, rerun the latest-release installer:
+
+```sh
+curl -fsSL https://github.com/bonkofun/bonko-cli/releases/latest/download/install.sh | sh
+bonko version
+```
+
+Use the same installation options as before if you customized the prefix or command directory. For a system-wide installation, use the system-wide installer instructions in [Install](#install). Subsequent updates can use `bonko upgrade`.
 
 ## Template files and components
 
