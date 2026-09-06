@@ -1,0 +1,9 @@
+node_modules/
+dist-cli/
+studio-dist/
+release/
+*.tgz
+*.log
+.env*
+.DS_Store
+.bonko/
