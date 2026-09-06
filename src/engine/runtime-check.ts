@@ -207,16 +207,17 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         'data-static',
         'ready',
       );
-      await expect(page.locator('iframe')).toBeVisible();
-      const child = page.frames().find((value) => value !== page.mainFrame());
-      if (!child) throw new Error('Missing template frame');
+      const child = frame.locator('body');
+      await expect(child).toContainText(name);
+      await expect(child).toContainText(message);
+      if (sender) await expect(child).toContainText(sender);
       await child.evaluate(async () => {
         await Promise.all(
           [...document.images].map((image) => image.decode().catch(() => undefined)),
         );
       });
       const result = await child.evaluate(
-        ({ name, message, sender }) => {
+        (_body, { name, message, sender }) => {
           const text = document.body.innerText;
           const photo = [...document.images].find(
             (image) =>

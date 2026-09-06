@@ -101,6 +101,11 @@ test(
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
       await expect(frame.getByRole('heading')).toHaveText('Taylor again');
       await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Latest replay');
+      await page.getByRole('button', { name: 'Replay', exact: true }).click();
+      await expect(frame.getByRole('heading')).toHaveText('Latest replay');
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
+      await expect(frame.getByRole('heading')).toHaveText('Taylor again');
       await page.getByRole('button', { name: 'Switch to dark theme', exact: true }).click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
       await page.getByRole('button', { name: 'Switch to light theme', exact: true }).click();

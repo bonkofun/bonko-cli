@@ -75,7 +75,8 @@ export function StableRuntimePreview({
                     <ControlsObserver view={view} notify={onControls} />
                   ) : null}
                   {pending ? <Readiness view={view} ready={commit} /> : null}
-                  {props.children(view, surface)}
+                  {/* Keep editor actions current while the previous picture remains visible. */}
+                  {frame.children(view, surface)}
                 </>
               )}
             </RuntimeFrame>
