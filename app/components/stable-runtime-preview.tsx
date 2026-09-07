@@ -1,9 +1,15 @@
+import { AudioScope } from '@bonko/template-sdk';
 import { useCallback, useEffect, useState } from 'react';
 import {
   RuntimeFrame,
   type RuntimeFrameControls,
   type RuntimeFrameProps,
 } from '@bonko/template-sdk/runtime-react';
+
+function AudibleFrame(props: RuntimeFrameProps) {
+  const [audioScope] = useState(() => new AudioScope());
+  return <RuntimeFrame {...props} audioScope={audioScope} />;
+}
 
 type Request = { id: string; frame: RuntimeFrameProps };
 
@@ -68,7 +74,7 @@ export function StableRuntimePreview({
                 : { height: '100%' }
             }
           >
-            <RuntimeFrame {...props}>
+            <AudibleFrame {...props}>
               {(view, surface) => (
                 <>
                   {!pending && onControls ? (
@@ -79,7 +85,7 @@ export function StableRuntimePreview({
                   {frame.children(view, surface)}
                 </>
               )}
-            </RuntimeFrame>
+            </AudibleFrame>
           </div>
         );
       })}
