@@ -11,7 +11,15 @@ export const packageInfo = JSON.parse(
 ) as { version: string; name: string };
 // Reviewed against the same v3 protocol, SDK and template dependency versions.
 // Extend only after compatibility verification; never infer support for future releases.
-const compatibleProjectVersions = new Set(['0.1.0', '0.1.1', '0.1.2', '0.1.3', '0.1.4', '0.1.5', '0.1.6']);
+const compatibleProjectVersions = new Set([
+  '0.1.0',
+  '0.1.1',
+  '0.1.2',
+  '0.1.3',
+  '0.1.4',
+  '0.1.5',
+  '0.1.6',
+]);
 export type Project = { root: string; slug: string };
 
 export async function findProject(start = process.cwd()): Promise<Project> {
