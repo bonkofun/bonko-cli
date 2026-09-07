@@ -15,6 +15,22 @@ Read the project's [DEVELOPMENT.md](../../../DEVELOPMENT.md), then inspect `mani
 4. Use supported imports listed in DEVELOPMENT.md. Reuse the generated SDK connection and lifecycle patterns. Add focused modules inside `src/` when useful; do not install a project framework or copy Studio components.
 5. Declare actual assets and capabilities in the manifest. Resolve asset IDs through the SDK, use SDK-managed audio, and record sources and rights in LICENSE.md. Use provided or authorized assets; report missing rights or unfinished artwork instead of inventing attribution.
 
+## Export cover and opening artwork
+
+Keep the catalog cover and the full-screen Receiver opening as separate assets. These are authoring budgets, not SDK validation limits; preserve the template's composition and document justified exceptions.
+
+| Asset               | Recommended image dimensions                                                                                      | Format | Target encoded size |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------- | ------ | ------------------- |
+| Catalog cover       | 600 × 900 px when the catalog uses 2:3; otherwise match its actual aspect ratio                                   | WebP   | 50–100 KB           |
+| Full-screen opening | 1170 px wide, with height proportional to the authored scene; 1170 × 2172 px is an example, not a universal ratio | WebP   | 100–180 KB          |
+
+- Export full-screen openings at 3× density from the actual rendered artwork: a 390 CSS-pixel viewport becomes 1170 image pixels. Use up to 1290 px width for a 430 CSS-pixel target; avoid unnecessary 2000–3000 px wide exports.
+- Render text and CSS/vector artwork at the target density. Never enlarge a previous 1× screenshot to simulate a high-resolution export.
+- Start WebP quality at 85–90, inspect small text, thin lines, and gradients, and increase only when needed. Quality 94 is appropriate when it preserves visible lettering detail within the size budget. Check encoded bytes, not dimensions alone; re-optimize assets over 250 KB.
+- Export only the authored template artwork after fonts and assets settle. Exclude browser/device chrome, cursor, Studio controls, Report, sound, Replay, and host branding. Opening artwork must not reveal a real recipient's name, photo, or private message.
+- Declare the actual optimized asset path in manifest.json and retain its logical asset ID. Keep existing published packages immutable; do not overwrite a released version to replace its image.
+- Compare the initial opening image against the live template at high pixel density and with runtime loading delayed. The loading still should be sharp immediately, without a low-resolution-to-sharp jump or a mismatched composition.
+
 ## Preserve playback behavior
 
 - Implement `render`, `renderStatic` and `dispose` according to the local protocol. Do not recreate roots or restart playback on every host update.

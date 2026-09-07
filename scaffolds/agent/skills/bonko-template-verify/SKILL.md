@@ -29,6 +29,10 @@ When a check fails, use its diagnostics to identify the source or manifest defec
 
 Use `bonko dev` and inspect the available phone widths, long messages, omitted sender and different photo crops. Review keyboard focus and activation, readable static content, pause/resume, replay, mute, reduced motion and asset-failure behavior. Real-device touch, audible sound quality, visual finish, rights and equivalent Canvas/WebGL photo rendering require separate review; explicitly record any unavailable checks. Do not infer that screenshots prove audio or touch behavior.
 
+## Check cover and opening exports
+
+Apply the size and format budgets in [the author skill](../bonko-template-author/SKILL.md). Inspect actual pixel dimensions and encoded byte sizes, manifest paths, and high-density first paint. Delay runtime loading to inspect the still before it is replaced; check for blurry lettering, aspect-ratio jumps, host controls baked into artwork, and private content. Record any asset above 250 KB and the optimization or justified exception. These are authoring checks, not additional SDK rejection rules.
+
 ## Package and hand off
 
 When the requested scope includes delivery and checks pass:

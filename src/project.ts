@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url';
 import { parseTemplateSubmission, RUNTIME_SDK_VERSION } from '@bonko/template-sdk/submission';
 import ts from 'typescript';
 import { errorCode } from './errors.js';
-import { samplePng } from './engine/scaffold.js';
 
 export const toolRoot = fileURLToPath(new URL('../', import.meta.url));
 export const packageInfo = JSON.parse(
@@ -90,7 +89,7 @@ export async function createProject(name: string, parent = process.cwd()): Promi
     access: 'free',
     tags: ['Note'],
     cover: 'cover',
-    assets: { cover: { kind: 'image', path: 'assets/cover.png' } },
+    assets: { cover: { kind: 'image', path: 'assets/cover.webp' } },
     entry: 'runtime/entry.js',
     capabilities: [],
     config: {},
@@ -119,7 +118,7 @@ export async function createProject(name: string, parent = process.cwd()): Promi
     'bonko.json': json({ schemaVersion: 1, cliVersion: packageInfo.version }),
     'manifest.json': json(manifest),
     'src/main.tsx': await readFile(path.join(toolRoot, 'scaffolds/standalone-main.tsx')),
-    'assets/cover.png': samplePng(),
+    'assets/cover.webp': await readFile(path.join(toolRoot, 'scaffolds/assets/cover.webp')),
     'test.json': json({
       revealButton: null,
       notes: 'Static draft. Interactive templates must name their keyboard reveal button.',

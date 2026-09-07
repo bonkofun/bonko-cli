@@ -52,6 +52,13 @@ test('new creates flat projects exclusively and resolves them from nested folder
   try {
     const project = await createProject('gift-note', parent);
     await assertTemplateGuidance(project.root);
+    const manifest = JSON.parse(await readFile(path.join(project.root, 'manifest.json'), 'utf8'));
+    assert.equal(manifest.assets.cover.path, 'assets/cover.webp');
+    const cover = await readFile(path.join(project.root, manifest.assets.cover.path));
+    assert.equal(cover.toString('ascii', 0, 4), 'RIFF');
+    assert.equal(cover.toString('ascii', 8, 12), 'WEBP');
+    assert.deepEqual(cover, await readFile(path.join(toolRoot, 'scaffolds/assets/cover.webp')));
+    await assert.rejects(access(path.join(project.root, 'assets/cover.png')), { code: 'ENOENT' });
     assert.deepEqual(await findProject(path.join(project.root, 'src')), project);
     await assert.rejects(createProject('gift-note', parent), /already exists/);
     await assert.rejects(createProject('../escape', parent), /lowercase/);
