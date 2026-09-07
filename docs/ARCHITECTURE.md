@@ -62,3 +62,9 @@ Browser verification checks supplied text/photo/crop, keyboard interaction, stat
 SIGINT/SIGTERM abort subprocesses and clean staging/locks while keeping the previous command active. `--recover-lock` explicitly recovers a lock owned by a dead local PID; it refuses active, unknown or foreign-host owners. Recovery itself is serialized. A kill during ownership-file creation, an interrupted recovery, or a filesystem failure may still require manual inspection; never remove a lock without checking its owner.
 
 Checksums detect corruption, while publisher authenticity depends on the HTTPS release source and GitHub account controls. The CLI does not claim cryptographically signed provenance.
+
+## Studio interaction
+
+Live preview automatically starts the template's own opening flow. Audio is enabled by default, with one audio scope per mounted preview; opening an interactive envelope requires only its own gesture. Browser autoplay restrictions still apply before user interaction. Replay restarts the experience, and mute, pause/resume and skip remain available. Editing uses an authored static view.
+
+The Photo panel accepts a batch of local PNG, JPEG or WebP files (10 MiB per file), bounded by the template's `config.maxPhotos` (default 1, maximum 10). Select a photo to preview and crop it, drag rows to reorder, or remove individual photos. Each photo retains its own framing. Replay supplies the ordered image bytes and `bonkoPhotoCount`/`bonkoPhotoTransformN` configuration to compatible templates. Photos stay in browser memory and are excluded from template packages.

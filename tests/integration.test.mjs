@@ -70,8 +70,8 @@ test(
       await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Live message');
       await expect(frame.getByText('Live message', { exact: true })).toBeVisible();
       await page.getByRole('tab', { name: 'Photo & framing', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Choose photo', exact: true })).toBeVisible();
-      await expect(page.getByText('No file selected', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Add photos', exact: true })).toBeVisible();
+      await expect(page.getByText('0 / 1 photos', { exact: true })).toBeVisible();
       await expect(page.getByLabel('Local photo', { exact: true })).toBeHidden();
       await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
       await expect(frame.locator('img')).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 0, 0)');
@@ -109,9 +109,10 @@ test(
       assert.deepEqual(gaps, []);
       await expect(page.locator('iframe')).toHaveCount(1);
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
-      await page.getByRole('button', { name: 'View message', exact: true }).click();
-      await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
+      await expect(page.locator('[data-preview-layer="current"] [role="status"]')).toHaveText(
+        'natural',
+      );
       await page.getByRole('tab', { name: 'Make it personal', exact: true }).click();
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
       await expect(frame.getByRole('heading')).toHaveText('Taylor again');
@@ -127,7 +128,7 @@ test(
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
       await page.getByRole('tab', { name: 'Audio', exact: true }).click();
       await expect(page.getByText('This template has no audio.', { exact: false })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Enable sound' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Mute sound' })).toBeDisabled();
       await page.getByRole('button', { name: 'Enter fullscreen preview', exact: true }).click();
       await expect
         .poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('aria-label')))
@@ -362,18 +363,18 @@ test(
         page.locator('[data-preview-layer="current"] [data-static="ready"]'),
       ).toBeVisible();
       await page.getByRole('tab', { name: 'Audio', exact: true }).click();
-      await page.getByRole('button', { name: 'Enable sound', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Mute sound', exact: true })).toHaveAttribute(
         'aria-pressed',
         'true',
       );
-      await expect(page.getByText('Sound is enabled.', { exact: false })).toBeVisible();
-      assert.equal(await page.evaluate(() => window.__tones), 0);
+      await expect(
+        page.getByText('Sound is enabled for playback.', { exact: false }),
+      ).toBeVisible();
+      const initialTones = await page.evaluate(() => window.__tones);
       for (let run = 1; run <= 2; run++) {
         await page.getByRole('button', { name: 'Replay', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Mute sound', exact: true })).toBeVisible();
-        await page.getByRole('button', { name: 'Play', exact: true }).click();
-        await expect.poll(() => page.evaluate(() => window.__tones)).toBe(run);
+        await expect.poll(() => page.evaluate(() => window.__tones)).toBe(initialTones + run);
       }
       await page.getByRole('button', { name: 'Mute sound', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Enable sound', exact: true })).toHaveAttribute(
@@ -381,11 +382,75 @@ test(
         'false',
       );
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
-      await page.getByRole('button', { name: 'Play', exact: true }).click();
       await expect(
         page.locator('[data-preview-layer="current"] [data-playback="waiting"]'),
       ).toBeVisible();
-      assert.equal(await page.evaluate(() => window.__tones), 2);
+      assert.equal(await page.evaluate(() => window.__tones), initialTones + 2);
+    } finally {
+      await browser?.close();
+      await server?.close();
+      await rm(parent, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'Studio batches photos, previews a selected photo and replays their ordered bytes',
+  { timeout: 30000 },
+  async () => {
+    const parent = await mkdtemp(path.join(tmpdir(), 'bonko-cli-photos-'));
+    let server, browser;
+    try {
+      const project = await createProject('photo-note', parent);
+      const manifestPath = path.join(project.root, 'manifest.json');
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+      manifest.config.maxPhotos = 3;
+      await writeFile(manifestPath, JSON.stringify(manifest));
+      server = await standaloneServerFor(project.root, project.slug, toolRoot, 0);
+      browser = await chromium.launch();
+      const page = await browser.newPage();
+      await page.addInitScript(() => {
+        window.addEventListener('message', (event) => {
+          if (event.data?.type === 'init') window.__photoInit = event.data;
+        });
+      });
+      await page.goto(server.origin);
+      await page.getByRole('tab', { name: 'Photo & framing' }).click();
+      const buffer = await page.screenshot();
+      await page
+        .locator('#photo')
+        .setInputFiles(
+          ['first.png', 'second.png'].map((name) => ({ name, mimeType: 'image/png', buffer })),
+        );
+      await expect(page.getByText('2 / 3 photos', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: '2. second.png' }).click();
+      await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
+      await expect(
+        page.locator('[data-preview-layer="current"] [data-static="ready"]'),
+      ).toBeVisible();
+      await page.getByRole('button', { name: 'Replay', exact: true }).click();
+      await expect
+        .poll(async () => {
+          const child = page.frames().find((frame) => frame.url().includes('/v3/'));
+          return child?.evaluate(() => window.__photoInit?.config.bonkoPhotoCount);
+        })
+        .toBe(2);
+      const child = page.frames().find((frame) => frame.url().includes('/v3/'));
+      assert.equal(
+        await child.evaluate(() => window.__photoInit.config.bonkoPhotoTransform2),
+        'translate(0px, 0px) scale(1.05)',
+      );
+      assert.equal(
+        await child.evaluate(() => window.__photoInit.assets['bonko-photo-2'].bytes.byteLength),
+        buffer.length,
+      );
+      await page
+        .locator('#photo')
+        .setInputFiles(
+          ['third.png', 'fourth.png'].map((name) => ({ name, mimeType: 'image/png', buffer })),
+        );
+      await expect(page.getByText('This template supports up to 3 photos.')).toBeVisible();
+      await expect(page.getByText('2 / 3 photos', { exact: true })).toBeVisible();
     } finally {
       await browser?.close();
       await server?.close();

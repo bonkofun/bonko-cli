@@ -11,8 +11,6 @@ import {
   IconMinimize,
   IconSun,
   IconMoon,
-  IconPlayerPlay,
-  IconPlayerPause,
   IconRotateClockwise,
   IconVolume,
   IconVolumeOff,
@@ -184,6 +182,16 @@ function Studio() {
     </main>
   );
 }
+function PhotoThumbnail({ file }: { file: File }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+  return url ? <img src={url} alt="" className="size-10 rounded object-cover" /> : null;
+}
+
 function Workspace({
   preview,
   revision,
@@ -228,7 +236,17 @@ function Workspace({
     refresh();
   }
   const photoInput = useRef<HTMLInputElement>(null);
-  const [photo, setPhoto] = useState<File>();
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [selected, setSelected] = useState(0);
+  const photo = photos[selected];
+  const [crops, setCrops] = useState<Map<File, typeof crop>>(() => new Map());
+  function selectPhoto(index: number) {
+    setSelected(index);
+    setCrop(crops.get(photos[index]) ?? { scale: 1, x: 0, y: 0 });
+    setEditing(true);
+  }
+  const maxPhotos = Math.max(1, Math.min(10, Number(preview.submission.config.maxPhotos) || 1));
+  const dragIndex = useRef<number | null>(null);
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoError, setPhotoError] = useState('');
   const [zoom, setZoom] = useState(100);
@@ -262,7 +280,7 @@ function Workspace({
       setFullscreenError('Fullscreen is unavailable in this browser.');
     }
   }
-  const [audioMuted, setAudioMuted] = useState(true);
+  const [audioMuted, setAudioMuted] = useState(false);
   const controls = useRef<RuntimeFrameControls | null>(null);
   const observeControls = useCallback((view: RuntimeFrameControls) => {
     controls.current = view;
@@ -272,10 +290,6 @@ function Workspace({
     setAudioMuted(muted);
     // Static hosts remain silent; retain the preference for the next Play gesture.
     controls.current?.setMuted(muted);
-  }
-  function playWithSound(view: RuntimeFrameControls) {
-    view.setMuted(audioMuted);
-    view.play();
   }
   const [mode, setMode] = useState('interactive');
   useEffect(() => {
@@ -304,7 +318,14 @@ function Workspace({
       {applied.senderName ? <p>{applied.senderName}</p> : null}
     </article>
   );
-  const key = JSON.stringify([revision, applied, photoUrl, mode, editing]);
+  const key = JSON.stringify([
+    revision,
+    applied,
+    photoUrl,
+    photos.map((file) => [file.name, file.lastModified, file.size]),
+    mode,
+    editing,
+  ]);
   return (
     <div className="workspace">
       <aside className="editor-panels" aria-label="Preview inputs">
@@ -376,7 +397,9 @@ function Workspace({
             <Card>
               <CardHeader>
                 <CardTitle>Photo & framing</CardTitle>
-                <CardDescription>Try a local photo and adjust its crop.</CardDescription>
+                <CardDescription>
+                  Add photos, drag to reorder, and select one to preview its framing.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <FieldGroup className="gap-4">
@@ -387,22 +410,32 @@ function Workspace({
                       ref={photoInput}
                       className="hidden"
                       type="file"
+                      multiple={maxPhotos > 1}
                       accept="image/png,image/jpeg,image/webp"
                       aria-invalid={!!photoError}
                       aria-describedby={photoError ? 'photo-error photo-help' : 'photo-help'}
                       onChange={(event) => {
-                        const file = event.target.files?.[0];
+                        const files = Array.from(event.target.files ?? []);
+                        event.target.value = '';
                         if (
-                          file &&
-                          (file.size > 10 * 1024 * 1024 ||
-                            !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
+                          files.some(
+                            (file) =>
+                              file.size > 10 * 1024 * 1024 ||
+                              !['image/png', 'image/jpeg', 'image/webp'].includes(file.type),
+                          )
                         ) {
-                          setPhotoError('Choose a PNG, JPEG or WebP photo no larger than 10 MiB.');
+                          setPhotoError(
+                            'Choose PNG, JPEG or WebP photos no larger than 10 MiB each.',
+                          );
+                          return;
+                        }
+                        if (photos.length + files.length > maxPhotos) {
+                          setPhotoError(`This template supports up to ${maxPhotos} photos.`);
                           return;
                         }
                         setPhotoError('');
                         setEditing(true);
-                        setPhoto(file);
+                        setPhotos((previous) => [...previous, ...files]);
                       }}
                     />
                     <div className="photo-picker">
@@ -412,10 +445,10 @@ function Workspace({
                         onClick={() => photoInput.current?.click()}
                         aria-describedby="photo-selection photo-help"
                       >
-                        Choose photo
+                        Add photos
                       </Button>
                       <span id="photo-selection" className="photo-selection" title={photo?.name}>
-                        {photo?.name ?? 'No file selected'}
+                        {photos.length} / {maxPhotos} photos
                       </span>
                     </div>
                     {photoError ? <FieldError id="photo-error">{photoError}</FieldError> : null}
@@ -423,6 +456,59 @@ function Workspace({
                       Stays in this browser. Never added to your package.
                     </FieldDescription>
                   </Field>
+                  <div className="flex flex-col gap-2">
+                    {photos.map((file, index) => (
+                      <div
+                        key={`${file.name}-${file.lastModified}-${index}`}
+                        draggable
+                        onDragStart={() => {
+                          dragIndex.current = index;
+                        }}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const from = dragIndex.current;
+                          if (from === null) return;
+                          const reordered = [...photos];
+                          const [moved] = reordered.splice(from, 1);
+                          reordered.splice(index, 0, moved);
+                          setPhotos(reordered);
+                          setSelected(reordered.indexOf(photo));
+                          setEditing(true);
+                          dragIndex.current = null;
+                        }}
+                        className="flex gap-2"
+                      >
+                        <Button
+                          variant={selected === index ? 'secondary' : 'outline'}
+                          className="h-auto min-h-14 min-w-0 flex-1 justify-start"
+                          aria-pressed={selected === index}
+                          onClick={() => {
+                            selectPhoto(index);
+                          }}
+                        >
+                          <PhotoThumbnail file={file} />
+                          <span className="truncate">
+                            {index + 1}. {file.name}
+                          </span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          aria-label={`Remove photo ${index + 1}`}
+                          onClick={() => {
+                            const remaining = photos.filter((_, i) => i !== index);
+                            setPhotos(remaining);
+                            setSelected(0);
+                            setCrop(crops.get(remaining[0]) ?? { scale: 1, x: 0, y: 0 });
+                            setPhotoError('');
+                            setEditing(true);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                   <Separator />
                   {(
                     [
@@ -446,7 +532,9 @@ function Workspace({
                         value={[crop[field]]}
                         onValueChange={([value]) => {
                           setEditing(true);
-                          setCrop((previous) => ({ ...previous, [field]: value }));
+                          const next = { ...crop, [field]: value };
+                          setCrop(next);
+                          if (photo) setCrops((previous) => new Map(previous).set(photo, next));
                         }}
                       />
                     </Field>
@@ -467,7 +555,7 @@ function Workspace({
                     {preview.submission.capabilities.includes('audio')
                       ? audioMuted
                         ? 'Sound is muted. Enable sound to hear audio during playback.'
-                        : 'Sound is enabled. Click Replay, then Play, and interact with the template to hear its sound. Static previews stay silent.'
+                        : 'Sound is enabled for playback. Open the envelope to continue. Static previews stay silent.'
                       : 'This template has no audio. The full experience works silently.'}
                   </p>
                   <Button
@@ -607,6 +695,7 @@ function Workspace({
           ) : (
             <StableRuntimePreview
               authoredStatic
+              autoStart
               muted={audioMuted}
               onControls={observeControls}
               previewKey={key}
@@ -620,10 +709,10 @@ function Workspace({
               staticOnly={mode === 'static' || (mode === 'interactive' && editing)}
               reducedMotion={mode === 'reduced'}
               fallback={fallback}
-              load={(signal) => {
+              load={async (signal) => {
                 if (mode === 'asset-error')
                   return Promise.reject(new Error('Simulated asset failure'));
-                return loadRuntimeAssets(
+                const data = await loadRuntimeAssets(
                   {
                     content: applied,
                     photo: { url: photoUrl || preview.assets[preview.submission.cover].url },
@@ -639,6 +728,27 @@ function Workspace({
                   },
                   signal,
                 );
+                if (!editing && photos.length) {
+                  data.content.photo = {
+                    bytes: await photos[0].arrayBuffer(),
+                    mime: photos[0].type as 'image/png' | 'image/jpeg' | 'image/webp',
+                  };
+                  const firstCrop = crops.get(photos[0]) ?? { scale: 1, x: 0, y: 0 };
+                  data.content.photoTransform = `translate(${firstCrop.x}px, ${firstCrop.y}px) scale(${firstCrop.scale})`;
+                  data.config = { ...data.config, bonkoPhotoCount: photos.length };
+                  await Promise.all(
+                    photos.slice(1).map(async (file, index) => {
+                      const framing = crops.get(file) ?? { scale: 1, x: 0, y: 0 };
+                      data.config[`bonkoPhotoTransform${index + 2}`] =
+                        `translate(${framing.x}px, ${framing.y}px) scale(${framing.scale})`;
+                      data.images[`bonko-photo-${index + 2}`] = {
+                        bytes: await file.arrayBuffer(),
+                        mime: file.type,
+                      };
+                    }),
+                  );
+                }
+                return data;
               }}
             >
               {(view, surface) => (
@@ -673,26 +783,14 @@ function Workspace({
                       </Button>
                     </div>
                     <div className="runtime-controls">
-                      <Button
-                        disabled={
-                          !view.ready ||
-                          view.state === 'ended' ||
-                          view.state === 'running' ||
-                          view.state === 'waiting'
-                        }
-                        onClick={() => playWithSound(view)}
-                      >
-                        <IconPlayerPlay data-icon="inline-start" aria-hidden="true" />
-                        {view.state === 'paused' ? 'Continue' : 'Play'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={!['running', 'waiting'].includes(view.state)}
-                        onClick={view.pause}
-                      >
-                        <IconPlayerPause data-icon="inline-start" aria-hidden="true" />
-                        Pause
-                      </Button>
+                      {['running', 'waiting', 'paused'].includes(view.state) ? (
+                        <Button
+                          variant="outline"
+                          onClick={view.state === 'paused' ? view.play : view.pause}
+                        >
+                          {view.state === 'paused' ? 'Continue' : 'Pause'}
+                        </Button>
+                      ) : null}
                       <Button
                         variant="outline"
                         disabled={!view.ready || view.state === 'ended'}
@@ -724,7 +822,7 @@ function Workspace({
                           ? 'Interact with the template inside the phone to continue.'
                           : view.state === 'paused'
                             ? 'Playback is paused. Continue when you’re ready.'
-                            : 'Play to start. View message to jump to the reveal.'}
+                            : 'Open the envelope in the preview. View message skips the animation.'}
                     </p>
                   </div>
                 </div>

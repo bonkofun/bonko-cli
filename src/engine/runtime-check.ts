@@ -83,9 +83,8 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       await page.getByRole('option', { name: modeLabels[value], exact: true }).click();
     }
     const status = page.locator('[data-preview-layer="current"] [data-playback] [role=status]');
-    const play = page.getByRole('button', { name: 'Play', exact: true });
     const skip = page.getByRole('button', { name: 'View message', exact: true });
-    await expect(play).toBeEnabled();
+    await expect(status).toHaveText(/^(running|waiting|natural)$/);
     for (const asset of Object.values(metadata.assets)) {
       await page.evaluate(
         async ({ asset, limits }) => {
@@ -173,9 +172,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     ).toBeVisible();
     async function finish() {
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
-      await expect(play).toBeEnabled();
-      await play.focus();
-      await play.press('Enter');
+      await expect(status).toHaveText(/^(running|waiting|natural)$/);
       if (interactive) {
         const reveal = frame.getByRole('button', { name: scenario.revealButton, exact: true });
         await reveal.waitFor({ timeout: 31000 });
@@ -286,10 +283,16 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     }
     checks.push('long-text-empty-sender', 'responsive');
     for (let index = 0; index < 3; index++) {
+      await chooseMode('interactive');
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
-      await expect(play).toBeEnabled();
-      await skip.click();
-      await expect(status).toHaveText('skip');
+      await expect(status).toHaveText(/^(running|waiting|natural)$/);
+      if (await skip.isEnabled()) {
+        await skip.click();
+        await expect(status).toHaveText('skip');
+      } else {
+        await expect(status).toHaveText('natural');
+        await chooseMode('static');
+      }
       await finalContent(
         'Alexandra'.repeat(4).slice(0, 30),
         'A little note to remind you that you matter. '.repeat(4).slice(0, 160),
