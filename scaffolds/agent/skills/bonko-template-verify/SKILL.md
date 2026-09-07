@@ -9,38 +9,80 @@ Read [DEVELOPMENT.md](../../../DEVELOPMENT.md), especially checks, lifecycle, as
 
 ## Review before running
 
-- Check manifest metadata, declared assets/capabilities, real code and media attribution, and the accessible reveal name in `test.json` for interactive templates.
-- Confirm supplied text, photo and crop reach both interactive and static presentations. Check cleanup, pause, replay, natural completion and reduced-motion handling against the protocol.
-- Look for unsupported imports, remote resources, unsafe text insertion or fabricated SDK interfaces. Fix source and metadata; never weaken the checker, copy SDK internals, or replace the authored static view with a generic fallback.
-- Preserve the recorded project CLI version. The active CLI may accept explicitly compatible historical versions. If it reports an unsupported version, use the recorded release or report the exact prerequisite; do not silently rewrite `bonko.json`. Do not change template version merely to evade a packaging conflict.
+- **Manifest Metadata & Versioning**: Manifest `version` must strictly follow the major-version regex `/^[1-9]\d*\.0$/` (e.g., `1.0`, `2.0`, `3.0`). Fractional updates (like `1.1` or `2.5`) will be rejected by schema validation.
+- **Capabilities & Declared Assets**: Ensure all used assets (`cover`, `bg`, `audio`, cutouts) and capabilities (`audio`, `canvas`) are declared in `manifest.json`.
+- **Accessible Name in `test.json`**: For interactive templates, `test.json` must declare `"revealButton": "<Accessible Name>"`, which must exactly match the reveal button's `aria-label` or accessible text name.
+- **CSS Sandbox Compliance**: Verify that no CSS file contains `@import` or `url(...)`—the compiler rejects these even inside CSS comments. All images must be resolved via `runtime.asset("id")` or `asset("id")`.
+- **Dual-Path Completeness**: Confirm supplied text, photo, and transform matrix reach both interactive (`render`) and static (`renderStatic`) presentations. Verify `renderStatic` commits immediately without waiting for timers or animations.
 
 ## Run the actual checks
+
+Execute the automated build and browser verification suite:
 
 ```sh
 bonko build
 bonko check --json
 ```
 
-Build only checks compilation. Browser verification is a separate requirement. Inspect the JSON result and the reports and available screenshots under `.bonko/checks/`. A failed command, missing browser or skipped check is not a pass. If Chromium is missing, use `bonko browser install` when the environment permits downloads; otherwise report the prerequisite. Do not request elevated privileges automatically.
+`bonko build` only verifies TypeScript and asset bundling. `bonko check --json` launches headless Chromium and runs the **18 automated protocol checks**:
 
-When a check fails, use its diagnostics to identify the source or manifest defect, make a focused correction and rerun the affected command. Avoid tests that merely recognize the checker inputs or hardcode its sample content. After the final change, rerun verification against the actual final bytes.
+| Automated Check | What It Validates |
+| :--- | :--- |
+| `manifest` | Protocol 3 schema, valid capabilities (`audio`, `canvas`), version regex `/^[1-9]\d*\.0$/`. |
+| `package-integrity` | Declared assets exist on disk and match integrity checksums. |
+| `source-policy` | Strict sandbox rules: no unauthorized imports, no dynamic `eval`, no `url()` in CSS. |
+| `typescript` | Clean compilation with zero type errors. |
+| `actual-media-decode` | All images (WebP/PNG) decode successfully; audio files decode and are strictly <= 10.0s. |
+| `keyboard-natural-completion` | Navigates via Tab + Enter to `test.json`'s reveal button, completes natural playback and transitions to `ended`. |
+| `escaped-user-content` | Verifies user text containing HTML entities (`<script>`, `&amp;`) is safely escaped. |
+| `local-photo-crop` | User photo and crop matrix are applied to the `<img>` element correctly. |
+| `authored-static-preview` | `renderStatic` commits the final completed card instantaneously and motionless. |
+| `preserved-natural-final-frame` | The live completed frame remains stable after `runtime.complete()` without flashing or unmounting. |
+| `long-text-empty-sender` | Layout adapts gracefully to 160-character messages and omitted sender name. |
+| `responsive` | Renders across 375px, 390px, 430px, and 1440px viewports with zero horizontal overflow. |
+| `static-replay-cleanup` | Template replays 3 times cleanly without timer retention, memory leaks, or duplicate audio. |
+| `authored-static-skip` | Fast skips advance directly to the static completed state. |
+| `authored-static-reduced-motion` | Reduced-motion mode renders the static completed card without running animations. |
+| `reduced-motion` | Motion and CSS respect `prefers-reduced-motion`. |
+| `asset-error-fallback` | Graceful fallback when an image or audio asset fails to load. |
+| `player-error-deadline` | Player timeout safeguards against hanging templates. |
+
+If Chromium is missing, run `bonko browser install`. Inspect the JSON output and screenshots under `.bonko/checks/`.
+
+## Common failure modes & troubleshooting
+
+- **Audio Cuts Off Prematurely**:
+  - *Cause*: `runtime.complete()` was called before the audio finished playing. When `runtime.complete()` is called, `AudioScope.stop()` immediately cuts audio.
+  - *Fix*: Match the completion timer delay to the full audio duration: `setTimeout(() => runtime.complete(), audioDurationMs)`.
+- **CSS Build Error (`url() is forbidden in CSS`)**:
+  - *Cause*: A CSS rule or comment contains `url(...)` or `@import`.
+  - *Fix*: Remove `url()` completely. Load images in React/DOM with `runtime.asset("id")` and pass image URLs via `src` attributes.
+- **Keyboard Completion Timeout**:
+  - *Cause*: The automated test could not find or activate the reveal button using keyboard navigation.
+  - *Fix*: Ensure the button is a semantic `<button>`, has `autoFocus`, and its `aria-label` or accessible text exactly matches `"revealButton"` in `test.json`.
+- **Horizontal Overflow on 375px**:
+  - *Cause*: Fixed widths or unconstrained elements cause horizontal scrollbars.
+  - *Fix*: Set `.template-viewport { overflow-x: hidden; }` and ensure card containers use `max-width: 360px; width: 100%; box-sizing: border-box;`.
 
 ## Review what automation cannot establish
 
-Use `bonko dev` and inspect the available phone widths, long messages, omitted sender and different photo crops. Review keyboard focus and activation, readable static content, pause/resume, replay, mute, reduced motion and asset-failure behavior. Real-device touch, audible sound quality, visual finish, rights and equivalent Canvas/WebGL photo rendering require separate review; explicitly record any unavailable checks. Do not infer that screenshots prove audio or touch behavior.
-
-## Check cover and opening exports
-
-Apply the size and format budgets in [the author skill](../bonko-template-author/SKILL.md). Inspect actual pixel dimensions and encoded byte sizes, manifest paths, and high-density first paint. Delay runtime loading to inspect the still before it is replaced; check for blurry lettering, aspect-ratio jumps, host controls baked into artwork, and private content. Record any asset above 250 KB and the optimization or justified exception. These are authoring checks, not additional SDK rejection rules.
+Use `bonko dev` to inspect what headless tests cannot evaluate:
+- **Audible Quality & Sound Balance**: Verify music box / audio melody sounds clear, balanced, and harmonizes with visual transitions.
+- **Visual Finish & Emotional Value**: Follow the visual hierarchy in [the author skill](../bonko-template-author/SKILL.md) to ensure the hero element and background feel luxurious and commercially appealing, not flat or placeholder-like.
+- **Touch & Gesture Smoothness**: Test tap response and card unfolding fluidity.
 
 ## Package and hand off
 
-When the requested scope includes delivery and checks pass:
+When all checks pass and visual/audio review is verified:
 
 ```sh
 bonko pack --json
 ```
 
-Packaging reruns checks and writes `dist/<slug>-<version>.bonko.zip`. Inspect the result and report its actual output path and any reported digest. Do not modify checked source during packaging or overwrite a different package under an existing version. Explain a version conflict and preserve the existing artifact; obtain the developer's version decision if not already authorized.
+Packaging reruns all 18 checks and generates `dist/<slug>-<version>.bonko.zip`.
 
-Summarize changes reviewed, commands and outcomes, manual review completed or skipped, unresolved issues and delivery location. The package still requires authorized platform review. Skills, AGENTS.md and DEVELOPMENT.md are authoring guidance, not runtime files or proof of approval.
+- **Handling Version Conflicts (`VERSION_CONFLICT`)**:
+  `bonko pack` will reject packaging if `dist/<slug>-<version>.bonko.zip` already exists. When delivering an updated package, bump the major version in `manifest.json` (`"1.0"` → `"2.0"` → `"3.0"`).
+- **Package Inspection**: Verify the zip file size (must be well below the 10 MB platform limit; aim for < 1.5 MB with optimized WebP and compressed MP3).
+- **Delivery Summary**: Report the final `.bonko.zip` path, asset digest, verified checks, and file size.
+
