@@ -83,7 +83,6 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       await page.getByRole('option', { name: modeLabels[value], exact: true }).click();
     }
     const status = page.locator('[data-preview-layer="current"] [data-playback] [role=status]');
-    const skip = page.getByRole('button', { name: 'View message', exact: true });
     await expect(status).toHaveText(/^(running|waiting|natural)$/);
     for (const asset of Object.values(metadata.assets)) {
       await page.evaluate(
@@ -176,18 +175,6 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       if (interactive) {
         const reveal = frame.getByRole('button', { name: scenario.revealButton, exact: true });
         await reveal.waitFor({ timeout: 31000 });
-        await page.getByRole('button', { name: 'Pause', exact: true }).click();
-        await expect(status).toHaveText('paused');
-        await page.evaluate(() => {
-          Object.defineProperty(document, 'hidden', { configurable: true, value: true });
-          document.dispatchEvent(new Event('visibilitychange'));
-        });
-        await page.evaluate(() => {
-          Object.defineProperty(document, 'hidden', { configurable: true, value: false });
-          document.dispatchEvent(new Event('visibilitychange'));
-        });
-        await expect(status).toHaveText('paused');
-        await page.getByRole('button', { name: 'Continue', exact: true }).click();
         await expect(reveal).toBeEnabled();
         await reveal.focus();
         await reveal.press('Enter');
@@ -262,7 +249,6 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     await finalContent('Alex <test>', 'Your words stay text: <b>hello</b>', 'Sam');
     await chooseMode('interactive');
     checks.push('authored-static-preview', 'preserved-natural-final-frame');
-    if (interactive) checks.push('pause-continue-background');
     const output = path.join(root, '.bonko', 'checks');
     await mkdir(output, { recursive: true });
     for (const width of [375, 390, 430, 1440]) {
@@ -286,20 +272,14 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       await chooseMode('interactive');
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect(status).toHaveText(/^(running|waiting|natural)$/);
-      if (await skip.isEnabled()) {
-        await skip.click();
-        await expect(status).toHaveText('skip');
-      } else {
-        await expect(status).toHaveText('natural');
-        await chooseMode('static');
-      }
+      await chooseMode('static');
       await finalContent(
         'Alexandra'.repeat(4).slice(0, 30),
         'A little note to remind you that you matter. '.repeat(4).slice(0, 160),
         '',
       );
     }
-    checks.push('skip-replay-cleanup');
+    checks.push('static-replay-cleanup');
     await chooseMode('reduced');
     await expect(status).toHaveText('reduced-motion');
     await finalContent(

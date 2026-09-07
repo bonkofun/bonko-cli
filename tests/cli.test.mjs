@@ -138,7 +138,7 @@ test('compatible historical projects run without rewriting pins; unknown version
     const project = await createProject('old-note', parent);
     const marker = path.join(project.root, 'bonko.json');
     const editorBefore = await readFile(path.join(project.root, 'tsconfig.json'), 'utf8');
-    for (const version of ['0.1.0', '0.1.1', '0.1.2', '0.1.3', '0.1.4']) {
+    for (const version of ['0.1.0', '0.1.1', '0.1.2', '0.1.3', '0.1.4', '0.1.5']) {
       const original = JSON.stringify({ schemaVersion: 1, cliVersion: version });
       await writeFile(marker, original);
       assert.deepEqual(await findProject(path.join(project.root, 'src')), project);

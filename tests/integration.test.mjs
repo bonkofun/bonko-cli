@@ -126,9 +126,11 @@ test(
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
       await page.getByRole('button', { name: 'Switch to light theme', exact: true }).click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-      await page.getByRole('tab', { name: 'Audio', exact: true }).click();
-      await expect(page.getByText('This template has no audio.', { exact: false })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Mute sound' })).toBeDisabled();
+      await expect(page.getByRole('tab', { name: 'Audio', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Mute', exact: true })).toHaveCount(0);
+      await expect(
+        page.locator('.preview-toolbar').getByRole('button', { name: 'Replay', exact: true }),
+      ).toBeVisible();
       await page.getByRole('button', { name: 'Enter fullscreen preview', exact: true }).click();
       await expect
         .poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('aria-label')))
@@ -326,7 +328,7 @@ test(
 );
 
 test(
-  'sound preference survives static editing and replay and reaches the audio host',
+  'default sound survives static editing and replay and reaches the audio host',
   { timeout: 60000 },
   async () => {
     const parent = await mkdtemp(path.join(tmpdir(), 'bonko-audio-preview-'));
@@ -362,30 +364,11 @@ test(
       await expect(
         page.locator('[data-preview-layer="current"] [data-static="ready"]'),
       ).toBeVisible();
-      await page.getByRole('tab', { name: 'Audio', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Mute sound', exact: true })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      await expect(
-        page.getByText('Sound is enabled for playback.', { exact: false }),
-      ).toBeVisible();
       const initialTones = await page.evaluate(() => window.__tones);
       for (let run = 1; run <= 2; run++) {
         await page.getByRole('button', { name: 'Replay', exact: true }).click();
-        await expect(page.getByRole('button', { name: 'Mute sound', exact: true })).toBeVisible();
         await expect.poll(() => page.evaluate(() => window.__tones)).toBe(initialTones + run);
       }
-      await page.getByRole('button', { name: 'Mute sound', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Enable sound', exact: true })).toHaveAttribute(
-        'aria-pressed',
-        'false',
-      );
-      await page.getByRole('button', { name: 'Replay', exact: true }).click();
-      await expect(
-        page.locator('[data-preview-layer="current"] [data-playback="waiting"]'),
-      ).toBeVisible();
-      assert.equal(await page.evaluate(() => window.__tones), initialTones + 2);
     } finally {
       await browser?.close();
       await server?.close();

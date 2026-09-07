@@ -643,7 +643,12 @@ body,
   display: none;
 }
 @media (max-width: 700px) {
+  .preview-toolbar {
+    flex-wrap: wrap;
+  }
   .preview-toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
     gap: 4px;
   }
   .preview-zoom {
