@@ -134,3 +134,45 @@ Checks execute local template code. Run reviewed sources in an environment witho
 Preserve previous commits and delivery packages before increasing manifest.version. Different content cannot overwrite the same version; repacking identical content still runs checks. Packaging uses the checked bytes. If source changes during checking, rerun the operation.
 
 Hand off one .bonko.zip to an authorized platform maintainer. They upload it to private staging, where the server revalidates the actual package, assets and digests. Maintainers assign a category, review tags and access, inspect source and satisfy deployment gates before publication. CLI success does not authorize publication, charging users or changing production data. Record completed checks and remaining work. Authors do not need the main-site repository, R2 credentials or database credentials.
+
+### Template-owned receiver opening
+
+An interactive v3 package can opt in with `config.receiverOpening: true`. This
+uses existing primitive manifest configuration; protocol stays 3 and sdkVersion
+stays `"0.2.0"`. The opening illustration, layout and transitions belong to the
+package's source and declared assets. `cover` remains the public catalog/OG
+image; it is not used as an improvised envelope. Publish a new immutable template
+version when introducing or changing the opening.
+
+Declare an additional image asset and set `config.receiverOpeningPoster` to its
+logical ID. This non-spoiler still shows the same opening composition during
+loading and reduced motion, without loading runtime code first. Keep the tap hint
+in this artwork, but no recipient content.
+
+The Receiver replaces the opt-in key with the reserved boolean `config.bonkoReceiverOpening` at init.
+Authors must not set this host field in a manifest. When it is true:
+
+- Render a still, non-spoiler opening while `runtime.state === "ready"`. Do not
+  show the recipient photo/name/message, play sound or run decorative loops.
+- The host places an accessible transparent opening button above the entire
+  template. A pointer tap, Enter or Space unlocks host audio and starts playback.
+  On the first transition to `running`, automatically perform the reveal once;
+  do not require another button click. Readiness is not permission to reveal.
+- Keep a normal semantic reveal button for Studio and hosts that do not supply
+  the flag. These hosts start playback first and then accept the template's click.
+- Respect paused/waiting/ended, dispose resources, and implement `renderStatic`
+  with the complete photo and message. Reduced-motion users see the still opening
+  first, then the authored static result after opening. Runtime failure shows a
+  readable result only after the host gesture. Sound is never required.
+
+The host owns Mute, Report, an unobtrusive Replay after completion, and the
+clickable “Made with Bonko” footer. Do not duplicate them inside the template.
+There is no ordinary pause/next toolbar in the Receiver; if browser visibility
+pauses a run, the host offers a contextual Resume action. Templates without the
+opt-in keep the existing generic invitation for compatibility.
+
+Studio's existing playback/keyboard checks exercise the normal reveal button.
+Additionally review this host opening path: ready without private content or
+sound → one host click → running → natural completion. Test an early click,
+muted opening, replay, reduced motion, failed loading and narrow screens before
+publication. CLI checks alone do not prove Receiver integration.
