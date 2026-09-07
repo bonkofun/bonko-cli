@@ -1,9 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { StableRuntimePreview } from '@/components/stable-runtime-preview';
 import { loadRuntimeAssets } from '@bonko/template-sdk/runtime-assets';
 import type { TemplateSubmission } from '@bonko/template-sdk/submission';
-import type { RuntimeFrameControls } from '@bonko/template-sdk/runtime-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { token } from 'virtual:standalone';
 import {
@@ -12,8 +11,6 @@ import {
   IconSun,
   IconMoon,
   IconRotateClockwise,
-  IconVolume,
-  IconVolumeOff,
   IconDeviceMobile,
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
@@ -280,17 +277,6 @@ function Workspace({
       setFullscreenError('Fullscreen is unavailable in this browser.');
     }
   }
-  const [audioMuted, setAudioMuted] = useState(false);
-  const controls = useRef<RuntimeFrameControls | null>(null);
-  const observeControls = useCallback((view: RuntimeFrameControls) => {
-    controls.current = view;
-  }, []);
-  function toggleSound() {
-    const muted = !audioMuted;
-    setAudioMuted(muted);
-    // Static hosts remain silent; retain the preference for the next Play gesture.
-    controls.current?.setMuted(muted);
-  }
   const [mode, setMode] = useState('interactive');
   useEffect(() => {
     if (!photo) {
@@ -337,7 +323,6 @@ function Workspace({
             <TabsTrigger value="photo" aria-label="Photo & framing">
               Photo
             </TabsTrigger>
-            <TabsTrigger value="audio">Audio</TabsTrigger>
             <TabsTrigger value="test" aria-label="Test the experience">
               Test
             </TabsTrigger>
@@ -543,38 +528,6 @@ function Workspace({
               </CardContent>
             </Card>
           </TabsContent>
-          <TabsContent value="audio">
-            <Card>
-              <CardHeader>
-                <CardTitle>Audio</CardTitle>
-                <CardDescription>Listen to the sound included in this template.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FieldGroup>
-                  <p role="status">
-                    {preview.submission.capabilities.includes('audio')
-                      ? audioMuted
-                        ? 'Sound is muted. Enable sound to hear audio during playback.'
-                        : 'Sound is enabled for playback. Open the envelope to continue. Static previews stay silent.'
-                      : 'This template has no audio. The full experience works silently.'}
-                  </p>
-                  <Button
-                    variant="outline"
-                    disabled={!preview.submission.capabilities.includes('audio')}
-                    aria-pressed={!audioMuted}
-                    onClick={toggleSound}
-                  >
-                    {audioMuted ? 'Enable sound' : 'Mute sound'}
-                  </Button>
-                  {Object.entries(preview.submission.assets)
-                    .filter(([, asset]) => asset.kind === 'audio')
-                    .map(([id]) => (
-                      <p key={id}>{id}</p>
-                    ))}
-                </FieldGroup>
-              </CardContent>
-            </Card>
-          </TabsContent>
           <TabsContent value="test">
             <Card>
               <CardHeader>
@@ -648,6 +601,10 @@ function Workspace({
             <h2>Live preview</h2>
           </div>
           <div className="preview-toolbar-actions">
+            <Button variant="ghost" disabled={blocked} onClick={replay}>
+              <IconRotateClockwise aria-hidden="true" />
+              Replay
+            </Button>
             <div className="preview-zoom">
               <label id="preview-size">Size</label>
               <Slider
@@ -682,22 +639,12 @@ function Workspace({
               <PhoneFrame zoom={zoom}>
                 <div className="runtime-surface">{fallback}</div>
               </PhoneFrame>
-              <div className="playback-panel">
-                <Badge variant="secondary">
-                  {blocked ? 'Rebuilding preview' : 'Generic fallback'}
-                </Badge>
-                <Button variant="outline" disabled={blocked} onClick={replay}>
-                  <IconRotateClockwise aria-hidden="true" />
-                  Replay
-                </Button>
-              </div>
             </>
           ) : (
             <StableRuntimePreview
               authoredStatic
               autoStart
-              muted={audioMuted}
-              onControls={observeControls}
+              muted={false}
               previewKey={key}
               title="Template preview"
               src={
@@ -761,70 +708,11 @@ function Workspace({
                   <PhoneFrame zoom={zoom}>
                     <div className="runtime-surface">{surface}</div>
                   </PhoneFrame>
-                  <div className="playback-panel">
-                    <div className="playback-heading">
-                      <Badge
-                        variant={
-                          view.reason === 'error' || view.staticState === 'error'
-                            ? 'destructive'
-                            : 'secondary'
-                        }
-                        role="status"
-                      >
-                        {view.staticState === 'pending'
-                          ? 'Preparing static view…'
-                          : view.staticState === 'error'
-                            ? 'error'
-                            : (view.reason ?? (view.ready ? view.state : 'Loading template…'))}
-                      </Badge>
-                      <Button variant="ghost" disabled={blocked} onClick={replay}>
-                        <IconRotateClockwise data-icon="inline-start" aria-hidden="true" />
-                        Replay
-                      </Button>
-                    </div>
-                    <div className="runtime-controls">
-                      {['running', 'waiting', 'paused'].includes(view.state) ? (
-                        <Button
-                          variant="outline"
-                          onClick={view.state === 'paused' ? view.play : view.pause}
-                        >
-                          {view.state === 'paused' ? 'Continue' : 'Pause'}
-                        </Button>
-                      ) : null}
-                      <Button
-                        variant="outline"
-                        disabled={!view.ready || view.state === 'ended'}
-                        onClick={view.skip}
-                      >
-                        View message
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={
-                          !preview.submission.capabilities.includes('audio') ||
-                          view.state === 'ended'
-                        }
-                        aria-pressed={!audioMuted}
-                        onClick={toggleSound}
-                      >
-                        {audioMuted ? (
-                          <IconVolume data-icon="inline-start" aria-hidden="true" />
-                        ) : (
-                          <IconVolumeOff data-icon="inline-start" aria-hidden="true" />
-                        )}
-                        {audioMuted ? 'Unmute' : 'Mute'}
-                      </Button>
-                    </div>
-                    <p className="playback-hint">
-                      {editing && mode === 'interactive'
-                        ? 'Live editing · Changes appear automatically. Replay to test the animation.'
-                        : view.state === 'waiting'
-                          ? 'Interact with the template inside the phone to continue.'
-                          : view.state === 'paused'
-                            ? 'Playback is paused. Continue when you’re ready.'
-                            : 'Open the envelope in the preview. View message skips the animation.'}
-                    </p>
-                  </div>
+                  <span className="sr-only" role="status">
+                    {view.staticState === 'error'
+                      ? 'error'
+                      : (view.reason ?? (view.ready ? view.state : 'Loading template…'))}
+                  </span>
                 </div>
               )}
             </StableRuntimePreview>
