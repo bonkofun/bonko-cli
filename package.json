@@ -1,6 +1,6 @@
 {
   "name": "@bonkofun/cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Local Bonko template creation, preview, build and verification CLI",
   "type": "module",
   "private": true,
@@ -35,7 +35,7 @@
     "verify": "npm run format:check && npm run lint && npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "@bonko/template-sdk": "0.2.3",
+    "@bonko/template-sdk": "0.2.4",
     "@playwright/test": "1.63.0",
     "@types/node": "22.13.0",
     "@types/react": "19.2.18",

@@ -332,7 +332,7 @@ export async function install(args, releaseVersion = '0.1.0', releaseBase = '') 
   }
 }
 
-try { await install(process.argv.slice(2), "0.1.4", ""); }
+try { await install(process.argv.slice(2), "0.1.5", ""); }
 catch (error) { console.error('Error: ' + error.message); process.exitCode = 1; }
 BONKO_INSTALL_JS
 }

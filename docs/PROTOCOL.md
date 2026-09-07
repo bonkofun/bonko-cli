@@ -1,6 +1,6 @@
 # Bonko standalone template protocol v3
 
-This protocol is shared by developers and authoring skills. Validation and playback use the distributed `@bonko/template-sdk` package exclusively. The installed SDK package is pinned to **0.2.3**, while the v3 manifest requires **`sdkVersion: "0.2.0"`**. The first is the implementation package release; the second identifies the runtime contract and is checked for exact equality, not a minimum compatible version. The CLI generates this field. Do not change it to `0.2.3`, copy SDK internals into Studio, or change validators to make a template pass.
+This protocol is shared by developers and authoring skills. Validation and playback use the distributed `@bonko/template-sdk` package exclusively. The installed SDK package is pinned to **0.2.4**, while the v3 manifest requires **`sdkVersion: "0.2.0"`**. The first is the implementation package release; the second identifies the runtime contract and is checked for exact equality, not a minimum compatible version. The CLI generates this field. Do not change it to `0.2.4`, copy SDK internals into Studio, or change validators to make a template pass.
 
 This document describes implemented interfaces and remaining review requirements; it does not authorize production publication. Studio accepts standalone v3 templates only, without legacy authoring or dual-package delivery.
 

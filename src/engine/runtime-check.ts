@@ -202,10 +202,15 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
           'Playback or authored static presentation failed; inspect renderStatic and its cleanup',
         );
     }
-    async function finalContent(name: string, message: string, sender: string) {
+    async function finalContent(
+      name: string,
+      message: string,
+      sender: string,
+      presentation: 'ready' | 'none' = 'ready',
+    ) {
       await expect(page.locator('[data-preview-layer="current"] [data-playback]')).toHaveAttribute(
         'data-static',
-        'ready',
+        presentation,
       );
       const child = frame.locator('body');
       await expect(child).toContainText(name);
@@ -239,12 +244,12 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       if (!result.content)
         throw new RuntimeBuildError(
           'MISSING_FINAL_CONTENT',
-          'Authored static composition must visibly include all supplied text',
+          'Final composition must visibly include all supplied text',
         );
       if (!result.photo || !result.crop.startsWith('matrix(1.5,'))
         throw new RuntimeBuildError(
           'MISSING_PHOTO_CROP',
-          'Authored static composition must display the supplied photo and apply photoTransform on that image',
+          'Final composition must display the supplied photo and apply photoTransform on that image',
         );
       if (result.overflow)
         throw new RuntimeBuildError(
@@ -253,13 +258,13 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         );
     }
     await finish();
-    await finalContent('Alex <test>', 'Your words stay text: <b>hello</b>', 'Sam');
+    await finalContent('Alex <test>', 'Your words stay text: <b>hello</b>', 'Sam', 'none');
     checks.push('keyboard-natural-completion', 'escaped-user-content', 'local-photo-crop');
     await chooseMode('static');
     await expect(status).toHaveText('ended');
     await finalContent('Alex <test>', 'Your words stay text: <b>hello</b>', 'Sam');
     await chooseMode('interactive');
-    checks.push('authored-static-preview', 'authored-static-natural');
+    checks.push('authored-static-preview', 'preserved-natural-final-frame');
     if (interactive) checks.push('pause-continue-background');
     const output = path.join(root, '.bonko', 'checks');
     await mkdir(output, { recursive: true });
@@ -272,6 +277,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         'Alexandra'.repeat(4).slice(0, 30),
         'A little note to remind you that you matter. '.repeat(4).slice(0, 160),
         '',
+        'none',
       );
       if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth))
         throw new RuntimeBuildError('HOST_OVERFLOW', `Studio overflows at ${width}px`);
