@@ -21,7 +21,7 @@ Keep the catalog cover and the full-screen Receiver opening as separate assets. 
 
 | Asset               | Recommended image dimensions                                                                                      | Format | Target encoded size |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------- | ------ | ------------------- |
-| Catalog cover       | 600 × 900 px when the catalog uses 2:3; otherwise match its actual aspect ratio                                   | WebP   | 50–100 KB           |
+| Catalog cover       | 640 × 800 px when the catalog uses 4:5; otherwise match its actual aspect ratio                                   | WebP   | 50–100 KB           |
 | Full-screen opening | 1170 px wide, with height proportional to the authored scene; 1170 × 2172 px is an example, not a universal ratio | WebP   | 100–180 KB          |
 
 - Export full-screen openings at 3× density from the actual rendered artwork: a 390 CSS-pixel viewport becomes 1170 image pixels. Use up to 1290 px width for a 430 CSS-pixel target; avoid unnecessary 2000–3000 px wide exports.
