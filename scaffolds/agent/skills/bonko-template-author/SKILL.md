@@ -55,12 +55,12 @@ Audio in standalone templates must be strictly harmonized with the visual choreo
 
 Keep the catalog cover, background, and cutout assets as distinct, optimized files:
 
-| Asset | Recommended Dimensions | Format | Target Size | Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| **Catalog Cover (`cover`)** | 640 × 800 px (4:5 aspect ratio) | WebP | 50–120 KB | Catalog store listing; high visual richness, 3D embossed lettering, celebratory mood. |
-| **Atmospheric Background (`bg`)** | 780 × 1368 px (vertical mobile) | WebP | 60–120 KB | Fullscreen ambient background; soft bokeh, stardust, or velvet textures. |
-| **Hero Focal Cutout** | 400–640 px max dimension | WebP (alpha) | 40–80 KB | Transparent foreground subject (cake, gift, flowers); cropped tight to bounding box. |
-| **Celebration Melody (`audio`)** | Duration <= 10.0s | MP3 | 40–150 KB | Musical greeting / chime; high clarity, under 10.0s platform limit. |
+| Asset                             | Recommended Dimensions          | Format       | Target Size | Purpose                                                                               |
+| :-------------------------------- | :------------------------------ | :----------- | :---------- | :------------------------------------------------------------------------------------ |
+| **Catalog Cover (`cover`)**       | 640 × 800 px (4:5 aspect ratio) | WebP         | 50–120 KB   | Catalog store listing; high visual richness, 3D embossed lettering, celebratory mood. |
+| **Atmospheric Background (`bg`)** | 780 × 1368 px (vertical mobile) | WebP         | 60–120 KB   | Fullscreen ambient background; soft bokeh, stardust, or velvet textures.              |
+| **Hero Focal Cutout**             | 400–640 px max dimension        | WebP (alpha) | 40–80 KB    | Transparent foreground subject (cake, gift, flowers); cropped tight to bounding box.  |
+| **Celebration Melody (`audio`)**  | Duration <= 10.0s               | MP3          | 40–150 KB   | Musical greeting / chime; high clarity, under 10.0s platform limit.                   |
 
 - Never enlarge a previous 1× screenshot to simulate high-resolution artwork.
 - Use WebP quality 85–90 for photos and illustrations; inspect edges and text sharpness.
