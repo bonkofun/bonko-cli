@@ -15,6 +15,16 @@ Read [DEVELOPMENT.md](../../../DEVELOPMENT.md), especially checks, lifecycle, as
 - **CSS Sandbox Compliance**: Verify that no CSS file contains `@import` or `url(...)`—the compiler rejects these even inside CSS comments. All images must be resolved via `runtime.asset("id")` or `asset("id")`.
 - **Dual-Path Completeness**: Confirm supplied text, photo, and transform matrix reach both interactive (`render`) and static (`renderStatic`) presentations. Verify `renderStatic` commits immediately without waiting for timers or animations.
 
+## Verify generated demonstration photographs
+
+Complete the same demonstration story with `sample.recipientName` (1–30 characters), `sample.message` (1–160) and `sample.senderName` (1–30). Write meaningful, occasion-appropriate example names and a finished message that fit the generated photos; do not deliver generic `Their name`, empty values or instructions such as `Enter message`. Use the existing sample object, not new top-level name/message/sender fields or config duplicates. These are preview defaults, never replacements for real recipient content or the user's optional sender.
+
+Give every demonstration photo its own meaningful description in `config.previewCaptionN`, paired with `previewPhotoN` in the same order. Require 1–80 characters per description, keep text outside the image, and verify the correct caption follows each photo in both animated and static previews. Do not fill real user descriptions with demo text.
+
+Use DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Require one independently generated, occasion-appropriate photograph for each supported slot, with distinct declared image assets and consecutive `config.previewPhoto1` through `previewPhotoN` references matching `maxPhotos` (default one). Reject finished deliveries containing blank blocks, reused catalog covers, missing files, private user photos or undocumented provenance. Decode and inspect the photographs at their actual frame crops.
+
+After packing, verify every referenced image is present in the ZIP and covered by package integrity metadata, and that all package budgets still pass. The upload host must validate/store these files and use them only for sample preview. Confirm user photos replace demos and demo photos do not increase upload counts or satisfy creation requirements. Report platform integration as unverified if it was not exercised; local packing is not proof of deployed behavior.
+
 ## Run the actual checks
 
 Execute the automated build and browser verification suite:
@@ -63,6 +73,16 @@ If Chromium is missing, run `bonko browser install`. Inspect the JSON output and
 - **Horizontal Overflow on 375px**:
   - _Cause_: Fixed widths or unconstrained elements cause horizontal scrollbars.
   - _Fix_: Set `.template-viewport { overflow-x: hidden; }` and ensure card containers use `max-width: 360px; width: 100%; box-sizing: border-box;`.
+
+## Verify playback duration and photo pacing
+
+Apply [the author skill's playback duration and photo pacing rules](../bonko-template-author/SKILL.md). Record a timeline from the start gesture to natural completion using active playback time, excluding loading, gesture waits and pauses.
+
+- Verify the complete automatic sequence, including opening, transitions and any audio hold, finishes within **15 seconds**. The host's 30-second safety deadline and a passing natural-completion check do not prove compliance with this stricter authoring requirement.
+- Exercise one photo and the maximum supported photo count. Each photo must be fully visible for approximately **3 seconds**, excluding obscured entrance/exit time. For 5–10 photos, verify readable simultaneous groups or collages and approximately 3 seconds per group; no supplied photo or caption may be omitted.
+- Confirm the packaged audio is at most **10.0 seconds**, including its tail, and that cue offsets plus validated startup allowance fit the overall 15-second budget. Verify full playback as described below; reject a timeline that meets the cap only by cutting audio off.
+- Verify the final still presentation preserves readable photos, captions and personal text after completion, with no timed disappearance. Pause must freeze the active clock; replay starts a fresh budget. Skip and reduced motion must bypass the sequence and expose the complete static content.
+- Report measured total time, photo/group hold times, maximum-count layout and audio completion evidence. Mark timing or listening review unverified when not exercised; existing automated protocol checks alone do not verify this pacing policy.
 
 ## Verify full audio playback separately
 

@@ -1,3 +1,4 @@
+import { withoutPreviewMetadata } from '../src/engine/preview-photos.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { StableRuntimePreview } from '@/components/stable-runtime-preview';
@@ -319,6 +320,14 @@ function Workspace({
   const maxPhotos = Math.max(1, Math.min(10, Number(preview.submission.config.maxPhotos) || 1));
   const dragIndex = useRef<number | null>(null);
   const [photoUrl, setPhotoUrl] = useState('');
+  const demoPhotoIds = Array.from(
+    { length: maxPhotos },
+    (_, index) => preview.submission.config[`previewPhoto${index + 1}`],
+  ).filter(
+    (id): id is string =>
+      typeof id === 'string' && preview.assets[id]?.contentType.startsWith('image/'),
+  );
+  const defaultPhotoUrl = preview.assets[demoPhotoIds[0] ?? preview.submission.cover].url;
   const [photoError, setPhotoError] = useState('');
   const [zoom, setZoom] = useState(100);
   const previewPanel = useRef<HTMLElement>(null);
@@ -371,7 +380,7 @@ function Workspace({
     >
       <div className="crop-photo">
         <img
-          src={photoUrl || preview.assets[preview.submission.cover].url}
+          src={photoUrl || defaultPhotoUrl}
           style={{ transform: applied.photoTransform }}
           alt="Test photo"
           onError={(event) => {
@@ -743,8 +752,8 @@ function Workspace({
                 const data = await loadRuntimeAssets(
                   {
                     content: applied,
-                    photo: { url: photoUrl || preview.assets[preview.submission.cover].url },
-                    config: preview.submission.config,
+                    photo: { url: photoUrl || defaultPhotoUrl },
+                    config: withoutPreviewMetadata(preview.submission.config),
                     hasSound: preview.submission.capabilities.includes('audio'),
                     allowedOrigins: [location.origin, preview.runtimeOrigin],
                     assets: Object.fromEntries(
@@ -775,6 +784,22 @@ function Workspace({
                       };
                     }),
                   );
+                }
+                if (!photos.length && !photoUrl && demoPhotoIds.length) {
+                  data.config = { ...data.config, bonkoPhotoCount: demoPhotoIds.length };
+                  const captions = demoPhotoIds.map((_, index) =>
+                    String(preview.submission.config[`previewCaption${index + 1}`] ?? ''),
+                  );
+                  for (let offset = 0; offset < captions.length; offset += 5) {
+                    data.config[`bonkoPhotoNotes${offset / 5 + 1}`] = captions
+                      .slice(offset, offset + 5)
+                      .map((caption) => caption.slice(0, 80).padEnd(80))
+                      .join('');
+                  }
+                  demoPhotoIds.slice(1).forEach((id, index) => {
+                    data.images[`bonko-photo-${index + 2}`] = data.images[id];
+                    data.config[`bonkoPhotoTransform${index + 2}`] = 'translate(0px, 0px) scale(1)';
+                  });
                 }
                 return data;
               }}

@@ -6,8 +6,8 @@ Skills are development guidance, not executable template code or substitutes for
 
 `bonko new` copies two maintained English skills from `scaffolds/agent/skills/` into the new project's `.agents/skills/`:
 
-- `bonko-template-author`: implement artwork, content, assets and runtime interactions.
-- `bonko-template-verify`: diagnose failures, review lifecycle and accessibility, and prepare delivery.
+- `bonko-template-author`: implement artwork, content, assets and runtime interactions, including generated demonstration photographs declared for packaging.
+- `bonko-template-verify`: diagnose failures, review lifecycle and accessibility, and inspect demonstration-photo references and ZIP contents before delivery.
 
 The generated AGENTS.md routes agents to those workflows. Each skill reads the generated DEVELOPMENT.md, copied from docs/PROTOCOL.md, so developers need neither this repository nor the former Studio repository. Relative links in scaffold guidance target the generated project layout. Keep detailed protocol rules in the shared protocol instead of duplicating them in skills.
 

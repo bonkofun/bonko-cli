@@ -18,7 +18,7 @@ This document describes implemented interfaces and remaining review requirements
   fixtures/*          Optional synthetic test data; excluded from delivery
 ```
 
-`bonko new <slug>` creates a static draft that can become interactive. The scaffold and generated cover are starting points, not finished artwork. Existing directories are never overwritten. Prefer selecting test photos in the preview: they remain in the browser and are not saved into template assets.
+`bonko new <slug>` creates a static draft that can become interactive. The scaffold and generated cover are starting points, not finished artwork. Existing directories are never overwritten. Private test photos selected in Studio remain in the browser and must not enter the package. Public synthetic demonstration photos are different: generate and declare them as described below.
 
 After browser checks pass, `bonko pack` creates `dist/<slug>-<version>.bonko.zip`, containing the manifest, declared assets, license, one runtime script, optional runtime CSS, reviewable source and a fixed dependency manifest. Author-provided HTML pages, installation scripts, node_modules, secrets, remote resource URLs and nested packages are not accepted.
 
@@ -176,3 +176,46 @@ Additionally review this host opening path: ready without private content or
 sound → one host click → running → natural completion. Test an early click,
 muted opening, replay, reduced motion, failed loading and narrow screens before
 publication. CLI checks alone do not prove Receiver integration.
+
+## Demonstration photos for creation previews
+
+Before handing off a finished template, generate original, occasion-appropriate demonstration photographs and save them as `assets/preview-photo-1.webp` through `assets/preview-photo-N.webp`, where N is `config.maxPhotos` (default 1, maximum 10). These are photographs placed inside the template's photo frames, not the 640 × 800 catalog cover, opening poster, screenshots, or flat placeholder blocks. Match the intended crops and use distinct images for a multi-photo sequence. Use available image-generation tooling; if it is unavailable, report the missing deliverable rather than inventing an image or claiming generation succeeded. Record tool, generation provenance, conversions and applicable terms in LICENSE.md. Never package private user uploads.
+
+Declare each file as a normal image asset and reference its logical ID using primitive config fields:
+
+```json
+{
+  "assets": {
+    "cover": { "kind": "image", "path": "assets/cover.webp" },
+    "preview-photo-1": { "kind": "image", "path": "assets/preview-photo-1.webp" },
+    "preview-photo-2": { "kind": "image", "path": "assets/preview-photo-2.webp" }
+  },
+  "config": {
+    "maxPhotos": 2,
+    "previewPhoto1": "preview-photo-1",
+    "previewCaption1": "A table full of laughter and familiar faces.",
+    "previewPhoto2": "preview-photo-2",
+    "previewCaption2": "One more memory to be thankful for."
+  }
+}
+```
+
+Merge these fields into the full manifest; do not add unknown fields to `sample` or put arrays, paths, data URLs or remote URLs in config. The declared limit must match the runtime's actual photo capacity. These assets and config fields count toward existing SDK budgets; optimize the images to remain within package limits.
+
+The CLI validates declared preview-photo references and requires a complete, distinct sequence when any previewPhoto field is present. Drafts without these fields remain buildable, but finished authoring deliverables require generated demonstration photos. Normal asset bundling includes the declared images in `.bonko.zip`; merely placing files in assets/ does not include them. Inspect the delivered ZIP, not only the source directory.
+
+On upload, the platform must validate these references and image bytes, retain the files with the template version, and resolve them through its normal verified asset storage. Hosts use them only for explicitly identified sample previews before the user supplies photos; they must never count as user uploads or become a newly created private link's photos. Templates continue to render host-supplied photo content and crop transforms, rather than silently replacing real content with their demo assets. Verify host consumption separately; CLI packaging alone does not prove a deployed host uses this metadata.
+
+Each demonstration photo requires a matching `config.previewCaptionN`: meaningful plain text describing that photo, 1–80 characters, not an empty string or a generic filename. Keep the same numbering and count as previewPhotoN. Captions are editable text metadata, never baked into generated photographs. Templates render the host-supplied photo notes in interactive and static presentations. The host removes previewPhoto/previewCaption metadata before runtime initialization and passes only the selected demo captions using the existing fixed-width bonkoPhotoNotes contract, preventing ten demo captions from exhausting runtime config space. Real user photos and descriptions replace the entire demo set; absent user descriptions stay absent.
+
+A finished demonstration also requires meaningful `sample.recipientName` (1–30 characters), `sample.message` (1–160) and `sample.senderName` (1–30), coherent with the photos and captions. Packages declaring demo photos are rejected if any of these values is blank or too long. Packages without demo metadata keep the existing optional-sender contract. Use the existing sample object, not a top-level `name`/`message`/`sender` extension:
+
+```json
+"sample": {
+  "recipientName": "Grace",
+  "message": "Thank you for filling our days with warmth, laughter, and love. Happy Thanksgiving!",
+  "senderName": "David"
+}
+```
+
+CLI preview initializes from sample content. The creation host uses sample name/message/sender only as preview defaults for missing input during the demo; they never satisfy required user inputs or enter a saved link. An omitted user sender remains omitted after the user supplies their own photo.
