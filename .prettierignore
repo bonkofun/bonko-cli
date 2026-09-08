@@ -7,3 +7,5 @@ release/
 .agents/skills/gh-fix-ci/
 npm-shrinkwrap.json
 install.sh
+.bonko/
+bonkoCards/

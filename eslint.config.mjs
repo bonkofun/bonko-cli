@@ -3,7 +3,17 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['node_modules/**', 'dist-cli/**', 'studio-dist/**', 'release/**', '.agents/**'] },
+  {
+    ignores: [
+      'node_modules/**',
+      'dist-cli/**',
+      'studio-dist/**',
+      'release/**',
+      '.agents/**',
+      '**/.bonko/**',
+      'bonkoCards/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

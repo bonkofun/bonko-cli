@@ -224,13 +224,14 @@ function Workspace({
     setEditing(true);
     setDraft(value);
   }
+  const [replayCount, setReplayCount] = useState(0);
   function replay() {
     setApplied({
       ...draft,
       photoTransform: `translate(${crop.x}px, ${crop.y}px) scale(${crop.scale})`,
     });
     setEditing(false);
-    refresh();
+    setReplayCount((value) => value + 1);
   }
   const photoInput = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<File[]>([]);
@@ -288,7 +289,13 @@ function Workspace({
     return () => URL.revokeObjectURL(url);
   }, [photo]);
   const fallback = (
-    <article className="runtime-fallback">
+    <article
+      className="runtime-fallback"
+      style={{
+        background: preview.submission.posterStyle?.background ?? '#fff9ed',
+        color: preview.submission.posterStyle?.foreground ?? '#292620',
+      }}
+    >
       <div className="crop-photo">
         <img
           src={photoUrl || preview.assets[preview.submission.cover].url}
@@ -306,6 +313,7 @@ function Workspace({
   );
   const key = JSON.stringify([
     revision,
+    replayCount,
     applied,
     photoUrl,
     photos.map((file) => [file.name, file.lastModified, file.size]),

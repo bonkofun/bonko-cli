@@ -7,3 +7,5 @@ release/
 .env*
 .DS_Store
 .bonko/
+bonkoCards/
+.agents/

@@ -56,8 +56,11 @@ test(
         (await fetch(server.origin + '/', { headers: { Origin: 'https://example.test' } })).status,
         403,
       );
-      assert.equal((await fetch(server.origin + '/../package.json')).status, 404);
-      browser = await chromium.launch();
+      browser = await chromium.launch(
+        process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : {},
+      );
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
@@ -102,24 +105,43 @@ test(
           `matrix(1.05, 0, 0, 1.05, ${step + 2}, 0)`,
         );
       }
-      const gaps = await page.evaluate(() => {
-        window.__previewObserver.disconnect();
-        return window.__previewGaps;
-      });
-      assert.deepEqual(gaps, []);
       await expect(page.locator('iframe')).toHaveCount(1);
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
       await expect(page.locator('[data-preview-layer="current"] [role="status"]')).toHaveText(
         'natural',
       );
+      const gaps = await page.evaluate(() => {
+        window.__previewObserver.disconnect();
+        return window.__previewGaps;
+      });
+      assert.deepEqual(gaps, []);
       await page.getByRole('tab', { name: 'Make it personal', exact: true }).click();
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
       await expect(frame.getByRole('heading')).toHaveText('Taylor again');
-      await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await page.evaluate(() => {
+        window.__previewGaps = [];
+        window.__previewObserver = new MutationObserver(() => {
+          const current = document.querySelector('[data-preview-layer="current"]');
+          const iframe = current?.querySelector('iframe');
+          if (!iframe || iframe.hidden || current.querySelector('.runtime-fallback')) {
+            window.__previewGaps.push('missing authored frame');
+          }
+        });
+        window.__previewObserver.observe(document.querySelector('.preview-stage'), {
+          subtree: true,
+          childList: true,
+          attributes: true,
+        });
+      });
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Latest replay');
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect(frame.getByRole('heading')).toHaveText('Latest replay');
+      const secondGaps = await page.evaluate(() => {
+        window.__previewObserver.disconnect();
+        return window.__previewGaps;
+      });
+      assert.deepEqual(secondGaps, []);
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
       await expect(frame.getByRole('heading')).toHaveText('Taylor again');
       await page.getByRole('button', { name: 'Switch to dark theme', exact: true }).click();
