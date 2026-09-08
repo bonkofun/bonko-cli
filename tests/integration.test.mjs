@@ -10,7 +10,12 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
-import { createProject, toolRoot, packageInfo } from '../dist-cli/project.js';
+import {
+  createProject,
+  findWorkspaceOrProject,
+  toolRoot,
+  packageInfo,
+} from '../dist-cli/project.js';
 import { standaloneServerFor } from '../dist-cli/engine/runtime-dev.js';
 
 async function run(file, args, cwd) {
@@ -460,6 +465,58 @@ test(
       await browser?.close();
       await server?.close();
       await rm(parent, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'Studio in workshop mode lists cards and switches active preview',
+  { timeout: 60000 },
+  async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'bonko-studio-workshop-'));
+    let server, browser;
+    try {
+      await createProject('card-first', root);
+      const card2 = await createProject('card-second', root);
+      const card2Manifest = JSON.parse(
+        await readFile(path.join(card2.root, 'manifest.json'), 'utf8'),
+      );
+      card2Manifest.name = 'Card Second';
+      card2Manifest.sample.recipientName = 'SecondRecipient';
+      await writeFile(
+        path.join(card2.root, 'manifest.json'),
+        JSON.stringify(card2Manifest, null, 2),
+      );
+
+      const discovered = await findWorkspaceOrProject(root);
+      server = await standaloneServerFor(discovered, toolRoot, undefined, 0);
+
+      browser = await chromium.launch(
+        process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : {},
+      );
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+      await page.goto(server.origin);
+
+      // Workshop switcher shows both cards
+      await expect(page.getByRole('button', { name: /Card First/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Card Second/i })).toBeVisible();
+
+      // Default first card loaded
+      const frame1 = page.frameLocator('[data-preview-layer="current"] iframe');
+      await expect(frame1.getByRole('heading')).toHaveText('Alex');
+
+      // Click to switch to card-second
+      await page.getByRole('button', { name: /Card Second/i }).click();
+
+      // The heading in the new card preview should show SecondRecipient
+      const frame2 = page.frameLocator('[data-preview-layer="current"] iframe');
+      await expect(frame2.getByRole('heading')).toHaveText('SecondRecipient');
+    } finally {
+      await browser?.close();
+      await server?.close();
+      await rm(root, { recursive: true, force: true });
     }
   },
 );

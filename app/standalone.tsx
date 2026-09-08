@@ -50,6 +50,17 @@ type Preview = {
   submission: TemplateSubmission;
   assets: Record<string, { url: string; sha256: string; byteSize: number; contentType: string }>;
 };
+
+type CardItem = {
+  slug: string;
+  name: string;
+  templateType: 'static' | 'interactive';
+  version: string;
+  author: string;
+  tags: string[];
+  hasError?: boolean;
+};
+
 function Studio() {
   const [theme, setTheme] = useState(() => {
     try {
@@ -67,6 +78,8 @@ function Studio() {
       /* Optional preference storage. */
     }
   }, [theme]);
+  const [cards, setCards] = useState<CardItem[]>([]);
+  const [selectedSlug, setSelectedSlug] = useState<string>('');
   const [preview, setPreview] = useState<Preview>();
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
@@ -76,17 +89,42 @@ function Studio() {
     setReload((value) => value + 1);
   }
   useEffect(() => {
-    const change = () => {
-      setLoading(true);
-      setReload((value) => value + 1);
+    void fetch('/__bonko/cards', {
+      headers: { 'x-bonko-preview': token },
+      cache: 'no-store',
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.cards && Array.isArray(data.cards)) {
+          setCards(data.cards);
+          if (data.cards.length > 0 && !selectedSlug) {
+            setSelectedSlug(data.cards[0].slug);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    const change = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data || '{}') as { slug?: string };
+        if (!payload.slug || payload.slug === selectedSlug) {
+          setLoading(true);
+          setReload((value) => value + 1);
+        }
+      } catch {
+        setLoading(true);
+        setReload((value) => value + 1);
+      }
     };
     const events = new EventSource(`/__bonko/events?token=${encodeURIComponent(token)}`);
     events.addEventListener('changed', change);
     return () => events.close();
-  }, []);
+  }, [selectedSlug]);
   useEffect(() => {
     const abort = new AbortController();
-    void fetch('/__bonko/preview', {
+    const query = selectedSlug ? `?slug=${encodeURIComponent(selectedSlug)}` : '';
+    void fetch(`/__bonko/preview${query}`, {
       headers: { 'x-bonko-preview': token },
       cache: 'no-store',
       signal: AbortSignal.any([abort.signal, AbortSignal.timeout(30000)]),
@@ -116,7 +154,7 @@ function Studio() {
         if (!abort.signal.aborted) setLoading(false);
       });
     return () => abort.abort();
-  }, [reload]);
+  }, [selectedSlug, reload]);
   return (
     <main className="studio-shell">
       <header className="studio-header">
@@ -143,6 +181,40 @@ function Studio() {
           <Badge variant="outline">Local workspace</Badge>
         </div>
       </header>
+      {cards.length > 1 ? (
+        <div className="workshop-bar flex items-center gap-2 mb-4 p-2 rounded-lg border bg-muted/30 flex-wrap">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+            Workshop Cards ({cards.length}):
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            {cards.map((c) => {
+              const isActive = (preview?.submission.slug ?? selectedSlug) === c.slug;
+              return (
+                <Button
+                  key={c.slug}
+                  variant={isActive ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    if (c.slug !== selectedSlug) {
+                      setLoading(true);
+                      setSelectedSlug(c.slug);
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  <span>{c.name}</span>
+                  <Badge
+                    variant={c.templateType === 'interactive' ? 'secondary' : 'outline'}
+                    className="text-[10px] px-1.5 py-0"
+                  >
+                    {c.templateType}
+                  </Badge>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       <div className="workspace-heading">
         <div>
           <div className="title-row">
@@ -170,6 +242,7 @@ function Studio() {
       ) : null}
       {preview ? (
         <Workspace
+          key={preview.submission.slug}
           preview={preview}
           revision={reload}
           blocked={!!error || loading}

@@ -21,8 +21,23 @@ const mimeTypes: Record<string, string> = {
 };
 const arrayBuffer = (bytes: Buffer) => Uint8Array.from(bytes).buffer;
 
+export type RuntimeProjectTarget = { root: string; slug: string };
+
 /** Loopback-only, in-memory counterpart of the production gateway; no R2 keys. */
-export async function createLocalRuntimeServer(root: string, slug: string, parentOrigin: string) {
+export async function createLocalRuntimeServer(
+  rootOrProjects: string | RuntimeProjectTarget[],
+  slugOrParentOrigin: string,
+  maybeParentOrigin?: string,
+) {
+  let projectList: RuntimeProjectTarget[];
+  let parentOrigin: string;
+  if (typeof rootOrProjects === 'string') {
+    projectList = [{ root: rootOrProjects, slug: slugOrParentOrigin }];
+    parentOrigin = maybeParentOrigin!;
+  } else {
+    projectList = rootOrProjects;
+    parentOrigin = slugOrParentOrigin;
+  }
   const parent = new URL(parentOrigin);
   if (
     parent.origin !== parentOrigin ||
@@ -39,9 +54,14 @@ export async function createLocalRuntimeServer(root: string, slug: string, paren
     document: Buffer;
     assets: Record<string, Asset>;
   };
+  const projectMap = new Map<string, RuntimeProjectTarget>();
+  for (const project of projectList) {
+    projectMap.set(project.slug, project);
+  }
+  const defaultSlug = projectList[0]?.slug;
   const snapshots = new Map<string, Snapshot>();
-  let current: Snapshot | undefined;
-  let pending: Promise<void> | undefined;
+  const cardSnapshots = new Map<string, Snapshot>();
+  const pendingBuilds = new Map<string, Promise<Snapshot>>();
   let closed = false,
     origin = '';
   const store = {
@@ -126,15 +146,70 @@ export async function createLocalRuntimeServer(root: string, slug: string, paren
     if (closed) return;
     closed = true;
     snapshots.clear();
-    current = undefined;
+    cardSnapshots.clear();
+    pendingBuilds.clear();
     await new Promise((resolve) => {
       server.close(resolve);
       server.closeAllConnections();
     });
   }
-  async function preview() {
-    if (closed || !current) throw new Error('Local preview is unavailable');
-    const snapshot = current;
+  async function buildCard(targetSlug: string): Promise<Snapshot> {
+    const project = projectMap.get(targetSlug);
+    if (!project) throw new Error(`Unknown card slug: ${targetSlug}`);
+    const bundle = await buildRuntime(project.root, project.slug);
+    if (closed) throw new Error('Local preview is closed');
+    const assets = Object.fromEntries(
+      Object.entries(bundle.submission.assets).map(([id, asset]) => {
+        const bytes = bundle.files[asset.path];
+        return [
+          id,
+          {
+            bytes,
+            byteSize: bytes.length,
+            sha256: createHash('sha256').update(bytes).digest('hex'),
+            contentType: mimeTypes[asset.path.split('.').pop() ?? ''],
+          },
+        ];
+      }),
+    );
+    const document = Buffer.from(
+      JSON.stringify({
+        script: bundle.files['runtime/entry.js'].toString('utf8'),
+        ...(bundle.files['runtime/style.css']
+          ? { stylesheet: bundle.files['runtime/style.css'].toString('utf8') }
+          : {}),
+      }),
+    );
+    const snapshot: Snapshot = {
+      digest: bundle.digest,
+      submission: bundle.submission,
+      document,
+      assets,
+    };
+    cardSnapshots.set(targetSlug, snapshot);
+    snapshots.delete(bundle.digest);
+    snapshots.set(bundle.digest, snapshot);
+    while (snapshots.size > 20) snapshots.delete(snapshots.keys().next().value!);
+    return snapshot;
+  }
+  async function ensureCardBuilt(targetSlug: string): Promise<Snapshot> {
+    let pending = pendingBuilds.get(targetSlug);
+    if (!pending) {
+      pending = buildCard(targetSlug).finally(() => {
+        pendingBuilds.delete(targetSlug);
+      });
+      pendingBuilds.set(targetSlug, pending);
+    }
+    return pending;
+  }
+  async function preview(slug?: string) {
+    if (closed) throw new Error('Local preview is unavailable');
+    const targetSlug = slug ?? defaultSlug;
+    if (!targetSlug) throw new Error('No card available in local preview');
+    let snapshot = cardSnapshots.get(targetSlug);
+    if (!snapshot) {
+      snapshot = await ensureCardBuilt(targetSlug);
+    }
     const token = await createRuntimePreviewToken(secret, snapshot.digest);
     return {
       digest: snapshot.digest,
@@ -154,44 +229,17 @@ export async function createLocalRuntimeServer(root: string, slug: string, paren
       ),
     };
   }
-  async function refresh() {
+  async function refresh(targetSlug?: string) {
     if (closed) throw new Error('Local preview is closed');
-    if (!pending)
-      pending = (async () => {
-        const bundle = await buildRuntime(root, slug);
-        if (closed) throw new Error('Local preview is closed');
-        const assets = Object.fromEntries(
-          Object.entries(bundle.submission.assets).map(([id, asset]) => {
-            const bytes = bundle.files[asset.path];
-            return [
-              id,
-              {
-                bytes,
-                byteSize: bytes.length,
-                sha256: createHash('sha256').update(bytes).digest('hex'),
-                contentType: mimeTypes[asset.path.split('.').pop() ?? ''],
-              },
-            ];
-          }),
-        );
-        const document = Buffer.from(
-          JSON.stringify({
-            script: bundle.files['runtime/entry.js'].toString('utf8'),
-            ...(bundle.files['runtime/style.css']
-              ? { stylesheet: bundle.files['runtime/style.css'].toString('utf8') }
-              : {}),
-          }),
-        );
-        current = { digest: bundle.digest, submission: bundle.submission, document, assets };
-        snapshots.delete(bundle.digest);
-        snapshots.set(bundle.digest, current);
-        // Bound memory while preserving a few already-mounted previews on refresh.
-        while (snapshots.size > 3) snapshots.delete(snapshots.keys().next().value!);
-      })().finally(() => {
-        pending = undefined;
-      });
-    await pending;
-    return preview();
+    if (targetSlug) {
+      await ensureCardBuilt(targetSlug);
+      return preview(targetSlug);
+    }
+    if (defaultSlug) {
+      await ensureCardBuilt(defaultSlug);
+      return preview(defaultSlug);
+    }
+    throw new Error('No card available in local preview');
   }
   try {
     await new Promise<void>((resolve, reject) => {
@@ -203,7 +251,9 @@ export async function createLocalRuntimeServer(root: string, slug: string, paren
     });
     origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     parseRuntimeOrigins(origin, [parentOrigin], true);
-    await refresh();
+    if (defaultSlug) {
+      await refresh(defaultSlug);
+    }
     return { origin, preview, refresh, close };
   } catch (error) {
     await close();
