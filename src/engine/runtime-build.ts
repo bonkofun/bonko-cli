@@ -1,3 +1,4 @@
+import { validatePreviewPhotos } from './preview-photos.js';
 import { readFile, readdir, lstat } from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
@@ -185,6 +186,7 @@ export async function buildRuntime(root: string, slug: string): Promise<BuiltTem
     throw new Error('Expected manifest.json, LICENSE.md and src/main.tsx');
   const input = JSON.parse(all['manifest.json'].toString('utf8'));
   const manifest = parseTemplateSubmission(input);
+  validatePreviewPhotos(manifest);
   if (manifest.slug !== slug) throw new Error('Directory and manifest slug differ');
   const source = Object.fromEntries(
     Object.entries(all)

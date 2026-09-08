@@ -10,7 +10,7 @@ Read the project's [DEVELOPMENT.md](../../../DEVELOPMENT.md), then inspect `mani
 ## Develop from the brief
 
 1. **Occasion & Emotional Resonance**: Bonko templates are commercial gifting and celebration products. Users preview templates before purchasing; the opening scene must convey high emotional value, exquisite craftsmanship, and instant appeal. Avoid flat, cartoonish 2D vector clip-art or rudimentary CSS placeholder shapes for primary celebratory focal points (such as cakes, bouquets, gift boxes, or jewelry).
-2. **Build the readable composition first**: Inspect existing components and assets. Build the completed readable card first using supplied recipient, message, optional sender, and one photo with its transform matrix. Test long text (up to 160 chars), omitted sender, and different photo crops; never hardcode sample content into the artwork.
+2. **Build the readable composition first**: Inspect existing components and assets. Build the completed readable card first using supplied recipient, message, optional sender, and the supported photo set with each supplied transform matrix. Declare `maxPhotos` to match the actual runtime capacity (default one, up to ten); do not advertise slots the animation never displays. Test long text (up to 160 chars), omitted sender, and different photo crops; never hardcode sample content into the artwork.
 3. **Add purposeful interaction**: For interactive templates, use a semantic `<button>` with a keyboard alternative (`autoFocus`, Tab + Enter) and an accessible name (`aria-label`) that matches the `revealButton` declared in `test.json`. Keep a direct, natural path to the complete message.
 4. **Use supported imports and SDK patterns**: Rely on supported imports listed in DEVELOPMENT.md (`react`, `react-dom/client`, `motion/react`). Reuse the generated SDK connection and lifecycle patterns. Add focused modules inside `src/` when useful (e.g. particle canvas confetti); do not install external UI component libraries or copy Studio components.
 5. **Declare actual assets & record provenance**: Declare all assets and capabilities (`audio`, `canvas`) in `manifest.json`. Resolve asset IDs exclusively through the SDK, use SDK-managed audio, and record all media sources and licenses in `LICENSE.md`.
@@ -46,6 +46,12 @@ Use these composition decisions across occasions; the burgundy, antique gold and
 - For `config.receiverOpening: true`, declare a separate opening image and set `config.receiverOpeningPoster` to its asset ID. Capture the actual still opening at suitable device pixel density, with the opening hint but without editor controls, host toolbar/footer or recipient content. This poster matches the runtime opening; it is not the catalog cover.
 - In the Receiver's `ready` state, show that still composition without sound or loops. When the host supplies `config.bonkoReceiverOpening`, its single opening gesture starts playback; do not require a second click. Keep the normal reveal button for Studio and hosts without that flag. Follow DEVELOPMENT.md for the complete host contract.
 - Record generation provenance and conversions in `LICENSE.md`. Keep previous deliverables intact; update manifest asset references and inspect the new package's actual contents.
+
+## Generate and package demonstration photographs
+
+Follow DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Generate the occasion-appropriate photo content yourself using available image-generation tooling and store one distinct image per supported photo slot in `assets/preview-photo-N.webp`. Do not reuse the catalog cover, a phone screenshot or a blank color block as a demonstration photograph. If generation is unavailable, report the missing deliverable; do not silently leave a placeholder.
+
+Declare every generated image in `manifest.assets`, then reference its logical ID with `config.previewPhoto1` through `previewPhotoN`. N must match the actual `maxPhotos` capacity, defaulting to one. Record generation provenance and terms in LICENSE.md. Keep demo assets separate from private test uploads, and continue rendering host-supplied photos and crop transforms. Inspect the final ZIP to ensure all demonstration images are included for upload; files merely placed in assets/ are not enough.
 
 ## Strict CSS compiler sandbox constraints
 

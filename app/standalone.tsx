@@ -319,6 +319,14 @@ function Workspace({
   const maxPhotos = Math.max(1, Math.min(10, Number(preview.submission.config.maxPhotos) || 1));
   const dragIndex = useRef<number | null>(null);
   const [photoUrl, setPhotoUrl] = useState('');
+  const demoPhotoIds = Array.from(
+    { length: maxPhotos },
+    (_, index) => preview.submission.config[`previewPhoto${index + 1}`],
+  ).filter(
+    (id): id is string =>
+      typeof id === 'string' && preview.assets[id]?.contentType.startsWith('image/'),
+  );
+  const defaultPhotoUrl = preview.assets[demoPhotoIds[0] ?? preview.submission.cover].url;
   const [photoError, setPhotoError] = useState('');
   const [zoom, setZoom] = useState(100);
   const previewPanel = useRef<HTMLElement>(null);
@@ -371,7 +379,7 @@ function Workspace({
     >
       <div className="crop-photo">
         <img
-          src={photoUrl || preview.assets[preview.submission.cover].url}
+          src={photoUrl || defaultPhotoUrl}
           style={{ transform: applied.photoTransform }}
           alt="Test photo"
           onError={(event) => {
@@ -743,7 +751,7 @@ function Workspace({
                 const data = await loadRuntimeAssets(
                   {
                     content: applied,
-                    photo: { url: photoUrl || preview.assets[preview.submission.cover].url },
+                    photo: { url: photoUrl || defaultPhotoUrl },
                     config: preview.submission.config,
                     hasSound: preview.submission.capabilities.includes('audio'),
                     allowedOrigins: [location.origin, preview.runtimeOrigin],
@@ -775,6 +783,13 @@ function Workspace({
                       };
                     }),
                   );
+                }
+                if (!photos.length && !photoUrl && demoPhotoIds.length) {
+                  data.config = { ...data.config, bonkoPhotoCount: demoPhotoIds.length };
+                  demoPhotoIds.slice(1).forEach((id, index) => {
+                    data.images[`bonko-photo-${index + 2}`] = data.images[id];
+                    data.config[`bonkoPhotoTransform${index + 2}`] = 'translate(0px, 0px) scale(1)';
+                  });
                 }
                 return data;
               }}

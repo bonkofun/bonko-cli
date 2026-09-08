@@ -1,0 +1,27 @@
+import type { TemplateSubmission } from '@bonko/template-sdk/submission';
+
+/** Optional authoring metadata; existing drafts without demo photos remain buildable. */
+export function validatePreviewPhotos(
+  manifest: Pick<TemplateSubmission, 'config' | 'assets' | 'cover'>,
+) {
+  const keys = Object.keys(manifest.config).filter((key) => key.startsWith('previewPhoto'));
+  if (!keys.length) return;
+  const max = manifest.config.maxPhotos ?? 1;
+  if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > 10)
+    throw new Error('Preview photos require maxPhotos between 1 and 10');
+  const paths = new Set<string>();
+  for (let index = 1; index <= Number(max); index++) {
+    const id = manifest.config[`previewPhoto${index}`];
+    const asset =
+      typeof id === 'string' && Object.hasOwn(manifest.assets, id)
+        ? manifest.assets[id]
+        : undefined;
+    if (!asset || asset.kind !== 'image')
+      throw new Error(`previewPhoto${index} must reference a declared image asset`);
+    if (asset.path === manifest.assets[manifest.cover]?.path || paths.has(asset.path))
+      throw new Error('Preview photos must be distinct images separate from the catalog cover');
+    paths.add(asset.path);
+  }
+  if (keys.length !== Number(max) || keys.some((key) => !/^previewPhoto([1-9]|10)$/.test(key)))
+    throw new Error('Preview photos must be consecutively numbered from 1 through maxPhotos');
+}
