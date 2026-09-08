@@ -49,6 +49,8 @@ Use these composition decisions across occasions; the burgundy, antique gold and
 
 ## Generate and package demonstration photographs
 
+Give every demonstration photo its own meaningful description in `config.previewCaptionN`, paired with `previewPhotoN` in the same order. Require 1–80 characters per description, keep text outside the image, and verify the correct caption follows each photo in both animated and static previews. Do not fill real user descriptions with demo text.
+
 Follow DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Generate the occasion-appropriate photo content yourself using available image-generation tooling and store one distinct image per supported photo slot in `assets/preview-photo-N.webp`. Do not reuse the catalog cover, a phone screenshot or a blank color block as a demonstration photograph. If generation is unavailable, report the missing deliverable; do not silently leave a placeholder.
 
 Declare every generated image in `manifest.assets`, then reference its logical ID with `config.previewPhoto1` through `previewPhotoN`. N must match the actual `maxPhotos` capacity, defaulting to one. Record generation provenance and terms in LICENSE.md. Keep demo assets separate from private test uploads, and continue rendering host-supplied photos and crop transforms. Inspect the final ZIP to ensure all demonstration images are included for upload; files merely placed in assets/ are not enough.

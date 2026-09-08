@@ -16,10 +16,19 @@ const assets = {
 test('preview photo metadata permits old drafts and validates complete distinct image references', () => {
   const manifest = { assets, cover: 'cover', config: {} };
   validatePreviewPhotos(manifest);
-  validatePreviewPhotos({ ...manifest, config: { previewPhoto1: 'demo' } });
   validatePreviewPhotos({
     ...manifest,
-    config: { maxPhotos: 2, previewPhoto1: 'demo', previewPhoto2: 'second' },
+    config: { previewPhoto1: 'demo', previewCaption1: 'A happy memory' },
+  });
+  validatePreviewPhotos({
+    ...manifest,
+    config: {
+      maxPhotos: 2,
+      previewPhoto1: 'demo',
+      previewCaption1: 'First memory',
+      previewPhoto2: 'second',
+      previewCaption2: 'Second memory',
+    },
   });
   for (const config of [
     { previewPhoto1: 'missing' },
@@ -40,6 +49,7 @@ test('declared demo photos are included in the verified bundle and missing files
     const manifest = JSON.parse(await readFile(path.join(project.root, 'manifest.json'), 'utf8'));
     manifest.assets.demo = { kind: 'image', path: 'assets/demo.webp' };
     manifest.config.previewPhoto1 = 'demo';
+    manifest.config.previewCaption1 = 'A happy memory';
     const image = await readFile(path.join(project.root, 'assets/cover.webp'));
     // Synthetic bytes only: this test verifies packaging, not finished artwork quality.
     await writeFile(path.join(project.root, 'assets/demo.webp'), image);
@@ -47,9 +57,24 @@ test('declared demo photos are included in the verified bundle and missing files
     const bundle = await buildRuntime(project.root, project.slug);
     assert.deepEqual(bundle.files['assets/demo.webp'], image);
     assert.equal(bundle.submission.config.previewPhoto1, 'demo');
+    assert.equal(bundle.submission.config.previewCaption1, 'A happy memory');
     await rm(path.join(project.root, 'assets/demo.webp'));
     await assert.rejects(buildRuntime(project.root, project.slug), /Missing asset/);
   } finally {
     await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test('every demonstration photo requires a nonempty caption bounded to 80 characters', () => {
+  for (const value of ['', '   ', 'a'.repeat(81), 12]) {
+    assert.throws(
+      () =>
+        validatePreviewPhotos({
+          assets,
+          cover: 'cover',
+          config: { previewPhoto1: 'demo', previewCaption1: value },
+        }),
+      /previewCaption1/,
+    );
   }
 });

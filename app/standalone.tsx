@@ -1,3 +1,4 @@
+import { withoutPreviewMetadata } from '../src/engine/preview-photos.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { StableRuntimePreview } from '@/components/stable-runtime-preview';
@@ -752,7 +753,7 @@ function Workspace({
                   {
                     content: applied,
                     photo: { url: photoUrl || defaultPhotoUrl },
-                    config: preview.submission.config,
+                    config: withoutPreviewMetadata(preview.submission.config),
                     hasSound: preview.submission.capabilities.includes('audio'),
                     allowedOrigins: [location.origin, preview.runtimeOrigin],
                     assets: Object.fromEntries(
@@ -786,6 +787,15 @@ function Workspace({
                 }
                 if (!photos.length && !photoUrl && demoPhotoIds.length) {
                   data.config = { ...data.config, bonkoPhotoCount: demoPhotoIds.length };
+                  const captions = demoPhotoIds.map((_, index) =>
+                    String(preview.submission.config[`previewCaption${index + 1}`] ?? ''),
+                  );
+                  for (let offset = 0; offset < captions.length; offset += 5) {
+                    data.config[`bonkoPhotoNotes${offset / 5 + 1}`] = captions
+                      .slice(offset, offset + 5)
+                      .map((caption) => caption.slice(0, 80).padEnd(80))
+                      .join('');
+                  }
                   demoPhotoIds.slice(1).forEach((id, index) => {
                     data.images[`bonko-photo-${index + 2}`] = data.images[id];
                     data.config[`bonkoPhotoTransform${index + 2}`] = 'translate(0px, 0px) scale(1)';

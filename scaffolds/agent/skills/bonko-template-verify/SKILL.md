@@ -17,6 +17,8 @@ Read [DEVELOPMENT.md](../../../DEVELOPMENT.md), especially checks, lifecycle, as
 
 ## Verify generated demonstration photographs
 
+Give every demonstration photo its own meaningful description in `config.previewCaptionN`, paired with `previewPhotoN` in the same order. Require 1–80 characters per description, keep text outside the image, and verify the correct caption follows each photo in both animated and static previews. Do not fill real user descriptions with demo text.
+
 Use DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Require one independently generated, occasion-appropriate photograph for each supported slot, with distinct declared image assets and consecutive `config.previewPhoto1` through `previewPhotoN` references matching `maxPhotos` (default one). Reject finished deliveries containing blank blocks, reused catalog covers, missing files, private user photos or undocumented provenance. Decode and inspect the photographs at their actual frame crops.
 
 After packing, verify every referenced image is present in the ZIP and covered by package integrity metadata, and that all package budgets still pass. The upload host must validate/store these files and use them only for sample preview. Confirm user photos replace demos and demo photos do not increase upload counts or satisfy creation requirements. Report platform integration as unverified if it was not exercised; local packing is not proof of deployed behavior.

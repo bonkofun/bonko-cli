@@ -5,7 +5,10 @@ export function validatePreviewPhotos(
   manifest: Pick<TemplateSubmission, 'config' | 'assets' | 'cover'>,
 ) {
   const keys = Object.keys(manifest.config).filter((key) => key.startsWith('previewPhoto'));
-  if (!keys.length) return;
+  const captionKeys = Object.keys(manifest.config).filter((key) =>
+    key.startsWith('previewCaption'),
+  );
+  if (!keys.length && !captionKeys.length) return;
   const max = manifest.config.maxPhotos ?? 1;
   if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > 10)
     throw new Error('Preview photos require maxPhotos between 1 and 10');
@@ -20,8 +23,25 @@ export function validatePreviewPhotos(
       throw new Error(`previewPhoto${index} must reference a declared image asset`);
     if (asset.path === manifest.assets[manifest.cover]?.path || paths.has(asset.path))
       throw new Error('Preview photos must be distinct images separate from the catalog cover');
+    const caption = manifest.config[`previewCaption${index}`];
+    if (typeof caption !== 'string' || !caption.trim() || caption.length > 80)
+      throw new Error(`previewCaption${index} must contain 1–80 characters`);
     paths.add(asset.path);
   }
+  if (
+    captionKeys.length !== Number(max) ||
+    captionKeys.some((key) => !/^previewCaption([1-9]|10)$/.test(key))
+  )
+    throw new Error('Preview captions must match the photo slots');
   if (keys.length !== Number(max) || keys.some((key) => !/^previewPhoto([1-9]|10)$/.test(key)))
     throw new Error('Preview photos must be consecutively numbered from 1 through maxPhotos');
+}
+
+/** Demo metadata belongs to the host; reserve runtime config space for real photo notes. */
+export function withoutPreviewMetadata(config: TemplateSubmission['config']) {
+  return Object.fromEntries(
+    Object.entries(config).filter(
+      ([key]) => !key.startsWith('previewPhoto') && !key.startsWith('previewCaption'),
+    ),
+  );
 }

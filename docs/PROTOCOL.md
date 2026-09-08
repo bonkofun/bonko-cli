@@ -193,7 +193,9 @@ Declare each file as a normal image asset and reference its logical ID using pri
   "config": {
     "maxPhotos": 2,
     "previewPhoto1": "preview-photo-1",
-    "previewPhoto2": "preview-photo-2"
+    "previewCaption1": "A table full of laughter and familiar faces.",
+    "previewPhoto2": "preview-photo-2",
+    "previewCaption2": "One more memory to be thankful for."
   }
 }
 ```
@@ -203,3 +205,5 @@ Merge these fields into the full manifest; do not add unknown fields to `sample`
 The CLI validates declared preview-photo references and requires a complete, distinct sequence when any previewPhoto field is present. Drafts without these fields remain buildable, but finished authoring deliverables require generated demonstration photos. Normal asset bundling includes the declared images in `.bonko.zip`; merely placing files in assets/ does not include them. Inspect the delivered ZIP, not only the source directory.
 
 On upload, the platform must validate these references and image bytes, retain the files with the template version, and resolve them through its normal verified asset storage. Hosts use them only for explicitly identified sample previews before the user supplies photos; they must never count as user uploads or become a newly created private link's photos. Templates continue to render host-supplied photo content and crop transforms, rather than silently replacing real content with their demo assets. Verify host consumption separately; CLI packaging alone does not prove a deployed host uses this metadata.
+
+Each demonstration photo requires a matching `config.previewCaptionN`: meaningful plain text describing that photo, 1–80 characters, not an empty string or a generic filename. Keep the same numbering and count as previewPhotoN. Captions are editable text metadata, never baked into generated photographs. Templates render the host-supplied photo notes in interactive and static presentations. The host removes previewPhoto/previewCaption metadata before runtime initialization and passes only the selected demo captions using the existing fixed-width bonkoPhotoNotes contract, preventing ten demo captions from exhausting runtime config space. Real user photos and descriptions replace the entire demo set; absent user descriptions stay absent.
