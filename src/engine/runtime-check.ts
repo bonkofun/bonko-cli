@@ -264,7 +264,16 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       );
       if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth))
         throw new RuntimeBuildError('HOST_OVERFLOW', `Studio overflows at ${width}px`);
-      await page.locator('[data-preview-layer="current"] iframe').scrollIntoViewIfNeeded();
+      await expect(page.locator('[data-preview-layer="pending"]')).toHaveCount(0);
+      await page
+        .locator('[data-preview-layer="current"] iframe')
+        .first()
+        .scrollIntoViewIfNeeded()
+        .catch(() =>
+          page.evaluate(() => {
+            document.querySelector('[data-preview-layer="current"] iframe')?.scrollIntoView();
+          }),
+        );
       await page.screenshot({ path: path.join(output, `${width}.png`), fullPage: true });
     }
     checks.push('long-text-empty-sender', 'responsive');
