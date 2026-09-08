@@ -129,11 +129,17 @@ export async function main(args: string[]) {
     console.log('Chromium is ready.');
     return;
   }
-  const project = await findProject();
   if (command === 'dev') {
+    const { findWorkspaceOrProject } = await import('./project.js');
+    const target = await findWorkspaceOrProject();
     const { standaloneServerFor } = await import('./engine/runtime-dev.js');
-    const server = await standaloneServerFor(project.root, project.slug, toolRoot, options.port);
+    const server = await standaloneServerFor(target, toolRoot, undefined, options.port);
     server.printUrls();
+    if (target.kind === 'workspace') {
+      console.log(
+        `Workshop mode: ${target.workspace.projects.length} cards (${target.workspace.projects.map((p) => p.slug).join(', ')})`,
+      );
+    }
     if (!options.noOpen) {
       const executable =
         process.platform === 'darwin'
@@ -153,6 +159,7 @@ export async function main(args: string[]) {
     process.on('SIGTERM', stop);
     return;
   }
+  const project = await findProject();
   if (command === 'build') {
     const { buildRuntime } = await import('./engine/runtime-build.js');
     const bundle = await buildRuntime(project.root, project.slug);

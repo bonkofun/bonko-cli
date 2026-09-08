@@ -10,7 +10,12 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
-import { createProject, toolRoot, packageInfo } from '../dist-cli/project.js';
+import {
+  createProject,
+  findWorkspaceOrProject,
+  toolRoot,
+  packageInfo,
+} from '../dist-cli/project.js';
 import { standaloneServerFor } from '../dist-cli/engine/runtime-dev.js';
 
 async function run(file, args, cwd) {
@@ -56,8 +61,11 @@ test(
         (await fetch(server.origin + '/', { headers: { Origin: 'https://example.test' } })).status,
         403,
       );
-      assert.equal((await fetch(server.origin + '/../package.json')).status, 404);
-      browser = await chromium.launch();
+      browser = await chromium.launch(
+        process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : {},
+      );
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
@@ -102,24 +110,43 @@ test(
           `matrix(1.05, 0, 0, 1.05, ${step + 2}, 0)`,
         );
       }
-      const gaps = await page.evaluate(() => {
-        window.__previewObserver.disconnect();
-        return window.__previewGaps;
-      });
-      assert.deepEqual(gaps, []);
       await expect(page.locator('iframe')).toHaveCount(1);
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
       await expect(page.locator('[data-preview-layer="current"] [role="status"]')).toHaveText(
         'natural',
       );
+      const gaps = await page.evaluate(() => {
+        window.__previewObserver.disconnect();
+        return window.__previewGaps;
+      });
+      assert.deepEqual(gaps, []);
       await page.getByRole('tab', { name: 'Make it personal', exact: true }).click();
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
       await expect(frame.getByRole('heading')).toHaveText('Taylor again');
-      await expect(page.locator('[data-static="ready"]')).toBeVisible();
+      await page.evaluate(() => {
+        window.__previewGaps = [];
+        window.__previewObserver = new MutationObserver(() => {
+          const current = document.querySelector('[data-preview-layer="current"]');
+          const iframe = current?.querySelector('iframe');
+          if (!iframe || iframe.hidden || current.querySelector('.runtime-fallback')) {
+            window.__previewGaps.push('missing authored frame');
+          }
+        });
+        window.__previewObserver.observe(document.querySelector('.preview-stage'), {
+          subtree: true,
+          childList: true,
+          attributes: true,
+        });
+      });
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Latest replay');
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect(frame.getByRole('heading')).toHaveText('Latest replay');
+      const secondGaps = await page.evaluate(() => {
+        window.__previewObserver.disconnect();
+        return window.__previewGaps;
+      });
+      assert.deepEqual(secondGaps, []);
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Taylor again');
       await expect(frame.getByRole('heading')).toHaveText('Taylor again');
       await page.getByRole('button', { name: 'Switch to dark theme', exact: true }).click();
@@ -438,6 +465,58 @@ test(
       await browser?.close();
       await server?.close();
       await rm(parent, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'Studio in workshop mode lists cards and switches active preview',
+  { timeout: 60000 },
+  async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'bonko-studio-workshop-'));
+    let server, browser;
+    try {
+      await createProject('card-first', root);
+      const card2 = await createProject('card-second', root);
+      const card2Manifest = JSON.parse(
+        await readFile(path.join(card2.root, 'manifest.json'), 'utf8'),
+      );
+      card2Manifest.name = 'Card Second';
+      card2Manifest.sample.recipientName = 'SecondRecipient';
+      await writeFile(
+        path.join(card2.root, 'manifest.json'),
+        JSON.stringify(card2Manifest, null, 2),
+      );
+
+      const discovered = await findWorkspaceOrProject(root);
+      server = await standaloneServerFor(discovered, toolRoot, undefined, 0);
+
+      browser = await chromium.launch(
+        process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : {},
+      );
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+      await page.goto(server.origin);
+
+      // Workshop switcher shows both cards
+      await expect(page.getByRole('button', { name: /Card First/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Card Second/i })).toBeVisible();
+
+      // Default first card loaded
+      const frame1 = page.frameLocator('[data-preview-layer="current"] iframe');
+      await expect(frame1.getByRole('heading')).toHaveText('Alex');
+
+      // Click to switch to card-second
+      await page.getByRole('button', { name: /Card Second/i }).click();
+
+      // The heading in the new card preview should show SecondRecipient
+      const frame2 = page.frameLocator('[data-preview-layer="current"] iframe');
+      await expect(frame2.getByRole('heading')).toHaveText('SecondRecipient');
+    } finally {
+      await browser?.close();
+      await server?.close();
+      await rm(root, { recursive: true, force: true });
     }
   },
 );

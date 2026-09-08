@@ -1,6 +1,6 @@
 {
   "name": "@bonkofun/cli",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Local Bonko template creation, preview, build and verification CLI",
   "type": "module",
   "private": true,

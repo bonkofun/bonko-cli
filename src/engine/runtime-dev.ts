@@ -12,13 +12,53 @@ import { readFile, readdir } from 'node:fs/promises';
 import { watch } from 'node:fs';
 import { createLocalRuntimeServer } from './runtime-server.js';
 
+import type { DiscoveredTarget, Project } from '../project.js';
+import type { RuntimeProjectTarget } from './runtime-server.js';
+
 /** Prebuilt Studio UI and a separately hosted opaque Runtime; loopback only. */
 export async function standaloneServerFor(
-  root: string,
-  slug: string,
-  toolRoot: string,
+  targetOrRoot: DiscoveredTarget | RuntimeProjectTarget[] | Project | string,
+  slugOrToolRoot?: string,
+  maybeToolRoot?: string,
   port = 4173,
 ) {
+  let projectList: RuntimeProjectTarget[];
+  let watchRoots: string[];
+  let toolRoot: string;
+  let listenPort = port;
+
+  if (typeof targetOrRoot === 'string') {
+    projectList = [{ root: targetOrRoot, slug: slugOrToolRoot! }];
+    watchRoots = [targetOrRoot];
+    toolRoot = maybeToolRoot!;
+  } else if (Array.isArray(targetOrRoot)) {
+    projectList = targetOrRoot;
+    watchRoots = targetOrRoot.map((p) => p.root);
+    toolRoot = slugOrToolRoot!;
+    if (typeof maybeToolRoot === 'number' || (maybeToolRoot && /^\d+$/.test(maybeToolRoot))) {
+      listenPort = Number(maybeToolRoot);
+    }
+  } else if ('kind' in targetOrRoot) {
+    if (targetOrRoot.kind === 'project') {
+      projectList = [targetOrRoot.project];
+      watchRoots = [targetOrRoot.project.root];
+    } else {
+      projectList = targetOrRoot.workspace.projects;
+      watchRoots = [targetOrRoot.workspace.root];
+    }
+    toolRoot = slugOrToolRoot!;
+    if (typeof maybeToolRoot === 'number' || (maybeToolRoot && /^\d+$/.test(maybeToolRoot))) {
+      listenPort = Number(maybeToolRoot);
+    }
+  } else {
+    projectList = [targetOrRoot];
+    watchRoots = [targetOrRoot.root];
+    toolRoot = slugOrToolRoot!;
+    if (typeof maybeToolRoot === 'number' || (maybeToolRoot && /^\d+$/.test(maybeToolRoot))) {
+      listenPort = Number(maybeToolRoot);
+    }
+  }
+
   const token = randomBytes(32).toString('hex');
   const staticRoot = path.join(toolRoot, 'studio-dist');
   const index = (await readFile(path.join(staticRoot, 'index.html'), 'utf8')).replace(
@@ -35,12 +75,13 @@ export async function standaloneServerFor(
   }
   let runtime: Awaited<ReturnType<typeof createLocalRuntimeServer>> | undefined;
   let origin = '';
-  let watcher: FSWatcher | undefined;
+  const watchers: FSWatcher[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
   let generation = 0,
     building = false,
     stopped = false;
-  let failure: RuntimeBuildError | undefined;
+  const failures = new Map<string, RuntimeBuildError>();
+  let globalFailure: RuntimeBuildError | undefined;
   const streams = new Set<ServerResponse>();
   const server = createServer((req, res) => {
     void (async () => {
@@ -63,8 +104,41 @@ export async function standaloneServerFor(
         return send(403, 'Forbidden');
       if (req.method !== 'GET') return send(405, 'Method not allowed');
       const url = new URL(req.url ?? '/', origin);
+      if (url.pathname === '/__bonko/cards') {
+        if (req.headers['x-bonko-preview'] !== token) return send(403, '{}', 'application/json');
+        const cards = await Promise.all(
+          projectList.map(async (project) => {
+            try {
+              const raw = await readFile(path.join(project.root, 'manifest.json'), 'utf8');
+              const manifest = JSON.parse(raw);
+              return {
+                slug: project.slug,
+                name: manifest.name ?? project.slug,
+                templateType: manifest.templateType ?? 'static',
+                version: manifest.version ?? '1.0',
+                author: manifest.author ?? '',
+                tags: manifest.tags ?? [],
+                hasError: failures.has(project.slug),
+              };
+            } catch {
+              return {
+                slug: project.slug,
+                name: project.slug,
+                templateType: 'static',
+                version: '1.0',
+                author: '',
+                tags: [],
+                hasError: true,
+              };
+            }
+          }),
+        );
+        return send(200, JSON.stringify({ cards }), 'application/json');
+      }
       if (url.pathname === '/__bonko/preview') {
         if (req.headers['x-bonko-preview'] !== token) return send(403, '{}', 'application/json');
+        const requestedSlug = url.searchParams.get('slug') ?? projectList[0]?.slug;
+        const failure = (requestedSlug ? failures.get(requestedSlug) : undefined) ?? globalFailure;
         if (!runtime || failure)
           return send(
             422,
@@ -74,7 +148,7 @@ export async function standaloneServerFor(
             }),
             'application/json',
           );
-        return send(200, JSON.stringify(await runtime.preview()), 'application/json');
+        return send(200, JSON.stringify(await runtime.preview(requestedSlug)), 'application/json');
       }
       if (url.pathname === '/__bonko/events') {
         if (url.searchParams.get('token') !== token) return send(403, 'Forbidden');
@@ -105,7 +179,8 @@ export async function standaloneServerFor(
     if (stopped) return;
     stopped = true;
     clearTimeout(timer);
-    watcher?.close();
+    for (const w of watchers) w.close();
+    watchers.length = 0;
     for (const stream of streams) stream.end();
     streams.clear();
     await runtime?.close();
@@ -114,7 +189,7 @@ export async function standaloneServerFor(
       server.closeAllConnections();
     });
   }
-  async function rebuild() {
+  async function rebuild(changedSlug?: string) {
     if (building || stopped) return;
     building = true;
     try {
@@ -122,16 +197,24 @@ export async function standaloneServerFor(
       do {
         observed = generation;
         try {
-          await runtime?.refresh();
-          failure = undefined;
+          await runtime?.refresh(changedSlug);
+          if (changedSlug) failures.delete(changedSlug);
+          else failures.clear();
+          globalFailure = undefined;
         } catch (error) {
-          failure =
+          const err =
             error instanceof RuntimeBuildError
               ? error
               : new RuntimeBuildError('BUILD_FAILED', errorMessage(error));
+          if (changedSlug) failures.set(changedSlug, err);
+          else globalFailure = err;
         }
       } while (!stopped && observed !== generation);
-      for (const stream of streams) stream.write('event: changed\ndata: {}\n\n');
+      for (const stream of streams) {
+        stream.write(
+          `event: changed\ndata: ${JSON.stringify(changedSlug ? { slug: changedSlug } : {})}\n\n`,
+        );
+      }
     } finally {
       building = false;
     }
@@ -139,19 +222,40 @@ export async function standaloneServerFor(
   try {
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
-      server.listen(port, '127.0.0.1', () => {
+      server.listen(listenPort, '127.0.0.1', () => {
         server.off('error', reject);
         resolve();
       });
     });
     origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-    runtime = await createLocalRuntimeServer(root, slug, origin);
-    watcher = watch(root, { recursive: true }, (_event, filename) => {
-      if (!filename || !/^(src[\\/]|assets[\\/]|manifest\.json$)/.test(String(filename))) return;
-      generation++;
-      clearTimeout(timer);
-      timer = setTimeout(() => void rebuild(), 100);
-    });
+    runtime = await createLocalRuntimeServer(projectList, origin);
+    for (const wRoot of watchRoots) {
+      const w = watch(wRoot, { recursive: true }, (_event, filename) => {
+        if (!filename) return;
+        const str = String(filename);
+        if (
+          !/^(src[\\/]|assets[\\/]|manifest\.json$|.*[\\/](src[\\/]|assets[\\/]|manifest\.json$))/.test(
+            str,
+          )
+        )
+          return;
+        generation++;
+        clearTimeout(timer);
+        let affectedSlug: string | undefined;
+        for (const p of projectList) {
+          if (
+            str.startsWith(p.slug + path.sep) ||
+            str.startsWith(p.slug + '/') ||
+            wRoot === p.root
+          ) {
+            affectedSlug = p.slug;
+            break;
+          }
+        }
+        timer = setTimeout(() => void rebuild(affectedSlug), 100);
+      });
+      watchers.push(w);
+    }
     return {
       httpServer: server,
       origin,
@@ -163,11 +267,11 @@ export async function standaloneServerFor(
   } catch (error) {
     await close();
     if (errorCode(error) === 'EADDRINUSE') {
-      let stopHint = `Find the listener: lsof -nP -iTCP:${port} -sTCP:LISTEN`;
+      let stopHint = `Find the listener: lsof -nP -iTCP:${listenPort} -sTCP:LISTEN`;
       try {
         const { stdout } = await promisify(execFile)(
           'lsof',
-          ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'],
+          ['-nP', `-iTCP:${listenPort}`, '-sTCP:LISTEN', '-t'],
           { timeout: 2000, maxBuffer: 16384 },
         );
         const pids = [...new Set(stdout.trim().split(/\s+/))];

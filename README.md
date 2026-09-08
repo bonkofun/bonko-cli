@@ -1,4 +1,5 @@
-<h1 align="center">Bonko CLI</h1>
+<div align="center">
+  <h1 align="center">Bonko CLI</h1>
 
 [![CI](https://github.com/bonkofun/bonko-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/bonkofun/bonko-cli/actions/workflows/ci.yml)
 [![Release workflow](https://github.com/bonkofun/bonko-cli/actions/workflows/release.yml/badge.svg)](https://github.com/bonkofun/bonko-cli/actions/workflows/release.yml)
@@ -8,6 +9,7 @@
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev/)
 [![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-Studio-000000?logo=shadcnui&logoColor=white)](https://ui.shadcn.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+</div>
 
 Create, preview, build, check and package standalone Bonko templates. Install the CLI once using your existing Node.js installation; each template works without its own dependency installation or a Studio checkout.
 

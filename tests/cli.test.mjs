@@ -6,9 +6,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from '../dist-cli/main.js';
-import { createProject, findProject, toolRoot } from '../dist-cli/project.js';
+import {
+  createProject,
+  findProject,
+  findWorkspaceOrProject,
+  toolRoot,
+} from '../dist-cli/project.js';
 import { supportsNode } from '../bin/node-version.mjs';
 import { buildRuntime } from '../dist-cli/engine/runtime-build.js';
+import { createLocalRuntimeServer } from '../dist-cli/engine/runtime-server.js';
+import { standaloneServerFor } from '../dist-cli/engine/runtime-dev.js';
 const executable = path.join(toolRoot, 'bin/bonko.mjs');
 
 test('version boundaries and standard command aliases', () => {
@@ -164,5 +171,99 @@ test('compatible historical projects run without rewriting pins; unknown version
     assert.equal(await readFile(path.join(project.root, 'tsconfig.json'), 'utf8'), editorBefore);
   } finally {
     await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test('findWorkspaceOrProject discovers multi-card workspaces and individual projects', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'bonko-workspace-'));
+  try {
+    const card1 = await createProject('card-one', root);
+    await createProject('card-two', root);
+    await mkdir(path.join(root, 'notes'));
+    await writeFile(path.join(root, 'notes', 'readme.txt'), 'hello');
+
+    const discovered = await findWorkspaceOrProject(root);
+    assert.equal(discovered.kind, 'workspace');
+    assert.equal(discovered.workspace.root, root);
+    assert.deepEqual(discovered.workspace.projects.map((p) => p.slug).sort(), [
+      'card-one',
+      'card-two',
+    ]);
+    await assert.rejects(findProject(root), /Multiple card projects found in workspace/);
+
+    const single = await findWorkspaceOrProject(path.join(card1.root, 'src'));
+    assert.equal(single.kind, 'project');
+    assert.equal(single.project.slug, 'card-one');
+    assert.equal(single.project.root, card1.root);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('local runtime server supports multiple cards and previews each by slug', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'bonko-multi-runtime-'));
+  let runtime;
+  try {
+    const card1 = await createProject('card-alpha', root);
+    const card2 = await createProject('card-beta', root);
+
+    runtime = await createLocalRuntimeServer(
+      [
+        { root: card1.root, slug: card1.slug },
+        { root: card2.root, slug: card2.slug },
+      ],
+      'http://127.0.0.1:4173',
+    );
+
+    const previewAlpha = await runtime.preview('card-alpha');
+    assert.equal(previewAlpha.submission.slug, 'card-alpha');
+    assert.ok(previewAlpha.url.includes(previewAlpha.digest));
+
+    const previewBeta = await runtime.preview('card-beta');
+    assert.equal(previewBeta.submission.slug, 'card-beta');
+    assert.ok(previewBeta.url.includes(previewBeta.digest));
+    assert.notEqual(previewAlpha.digest, previewBeta.digest);
+  } finally {
+    await runtime?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('standaloneServerFor supports workspace mode and exposes cards list API', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'bonko-server-workspace-'));
+  let server;
+  try {
+    await createProject('card-one', root);
+    await createProject('card-two', root);
+    const discovered = await findWorkspaceOrProject(root);
+
+    server = await standaloneServerFor(discovered, toolRoot, undefined, 0);
+
+    // Fetch index page with embedded preview token
+    const indexRes = await fetch(server.origin + '/');
+    assert.equal(indexRes.status, 200);
+    const indexHtml = await indexRes.text();
+    const tokenMatch = /__BONKO_PREVIEW_TOKEN__="([a-f0-9]+)"/.exec(indexHtml);
+    assert.ok(tokenMatch, 'Token must be present in index.html');
+    const token = tokenMatch[1];
+
+    // Cards API lists all cards in the workspace
+    const cardsRes = await fetch(server.origin + '/__bonko/cards', {
+      headers: { 'x-bonko-preview': token },
+    });
+    assert.equal(cardsRes.status, 200);
+    const cardsData = await cardsRes.json();
+    assert.deepEqual(cardsData.cards.map((c) => c.slug).sort(), ['card-one', 'card-two']);
+
+    // Preview by specific card slug
+    const previewRes = await fetch(server.origin + '/__bonko/preview?slug=card-two', {
+      headers: { 'x-bonko-preview': token },
+    });
+    assert.equal(previewRes.status, 200);
+    const previewData = await previewRes.json();
+    assert.equal(previewData.submission.slug, 'card-two');
+  } finally {
+    await server?.close();
+    await rm(root, { recursive: true, force: true });
   }
 });

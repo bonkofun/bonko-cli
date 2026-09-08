@@ -1,4 +1,4 @@
-import { lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTemplateSubmission, RUNTIME_SDK_VERSION } from '@bonko/template-sdk/submission';
@@ -21,56 +21,108 @@ const compatibleProjectVersions = new Set([
   '0.1.6',
 ]);
 export type Project = { root: string; slug: string };
+export type Workspace = { root: string; projects: Project[] };
+export type DiscoveredTarget =
+  { kind: 'project'; project: Project } | { kind: 'workspace'; workspace: Workspace };
 
-export async function findProject(start = process.cwd()): Promise<Project> {
-  let root = path.resolve(start);
+async function inspectProjectAt(dir: string): Promise<Project | null> {
+  let raw: string;
+  try {
+    raw = await readFile(path.join(dir, 'bonko.json'), 'utf8');
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return null;
+    throw error;
+  }
+  const config: unknown = JSON.parse(raw);
+  if (
+    !config ||
+    typeof config !== 'object' ||
+    !('schemaVersion' in config) ||
+    config.schemaVersion !== 1 ||
+    !('cliVersion' in config) ||
+    typeof config.cliVersion !== 'string' ||
+    !/^\d+\.\d+\.\d+$/.test(config.cliVersion)
+  ) {
+    throw new Error(`Invalid project configuration: ${path.join(dir, 'bonko.json')}`);
+  }
+  if (
+    config.cliVersion !== packageInfo.version &&
+    !compatibleProjectVersions.has(config.cliVersion)
+  ) {
+    throw new Error(
+      `This project pins Bonko CLI ${config.cliVersion}, which is not supported by running CLI ${packageInfo.version}. Run bonko use ${config.cliVersion} if it is installed. Otherwise install that version from https://github.com/bonkofun/bonko-cli/releases/tag/v${config.cliVersion}.`,
+    );
+  }
+  let manifestText: string;
+  try {
+    manifestText = await readFile(path.join(dir, 'manifest.json'), 'utf8');
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT')
+      throw new Error(`Missing manifest.json in Bonko project: ${dir}`);
+    throw error;
+  }
+  const manifest = parseTemplateSubmission(JSON.parse(manifestText));
+  return { root: dir, slug: manifest.slug };
+}
+
+export async function findWorkspaceOrProject(start = process.cwd()): Promise<DiscoveredTarget> {
+  const current = path.resolve(start);
+  const directProject = await inspectProjectAt(current);
+  if (directProject) {
+    return { kind: 'project', project: directProject };
+  }
+
+  try {
+    const entries = await readdir(current, { withFileTypes: true });
+    const subProjects: Project[] = [];
+    for (const entry of entries) {
+      if (
+        !entry.isDirectory() ||
+        entry.name.startsWith('.') ||
+        entry.name === 'node_modules' ||
+        entry.name === 'dist'
+      ) {
+        continue;
+      }
+      const subDir = path.join(current, entry.name);
+      const subProject = await inspectProjectAt(subDir);
+      if (subProject) {
+        subProjects.push(subProject);
+      }
+    }
+    if (subProjects.length > 0) {
+      subProjects.sort((a, b) => a.slug.localeCompare(b.slug));
+      return {
+        kind: 'workspace',
+        workspace: { root: current, projects: subProjects },
+      };
+    }
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') throw error;
+  }
+
+  let cursor = path.dirname(current);
   while (true) {
-    let raw: string;
-    try {
-      raw = await readFile(path.join(root, 'bonko.json'), 'utf8');
-    } catch (error) {
-      if (errorCode(error) !== 'ENOENT') throw error;
-      const parent = path.dirname(root);
-      if (parent === root)
-        throw new Error(
-          'No Bonko project found. Run bonko new <name>, then cd into the new directory.',
-        );
-      root = parent;
-      continue;
+    const project = await inspectProjectAt(cursor);
+    if (project) {
+      return { kind: 'project', project };
     }
-    // A project marker owns this directory. A damaged project must never fall
-    // through to a parent and accidentally build or package another template.
-    const config: unknown = JSON.parse(raw);
-    if (
-      !config ||
-      typeof config !== 'object' ||
-      !('schemaVersion' in config) ||
-      config.schemaVersion !== 1 ||
-      !('cliVersion' in config) ||
-      typeof config.cliVersion !== 'string' ||
-      !/^\d+\.\d+\.\d+$/.test(config.cliVersion)
-    ) {
-      throw new Error(`Invalid project configuration: ${path.join(root, 'bonko.json')}`);
-    }
-    if (
-      config.cliVersion !== packageInfo.version &&
-      !compatibleProjectVersions.has(config.cliVersion)
-    ) {
+    const parent = path.dirname(cursor);
+    if (parent === cursor) {
       throw new Error(
-        `This project pins Bonko CLI ${config.cliVersion}, which is not supported by running CLI ${packageInfo.version}. Run bonko use ${config.cliVersion} if it is installed. Otherwise install that version from https://github.com/bonkofun/bonko-cli/releases/tag/v${config.cliVersion}.`,
+        'No Bonko project found. Run bonko new <name>, then cd into the new directory.',
       );
     }
-    let manifestText: string;
-    try {
-      manifestText = await readFile(path.join(root, 'manifest.json'), 'utf8');
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT')
-        throw new Error(`Missing manifest.json in Bonko project: ${root}`);
-      throw error;
-    }
-    const manifest = parseTemplateSubmission(JSON.parse(manifestText));
-    return { root, slug: manifest.slug };
+    cursor = parent;
   }
+}
+
+export async function findProject(start = process.cwd()): Promise<Project> {
+  const target = await findWorkspaceOrProject(start);
+  if (target.kind === 'project') return target.project;
+  throw new Error(
+    `Multiple card projects found in workspace (${target.workspace.projects.map((p) => p.slug).join(', ')}). Select or cd into a specific card project.`,
+  );
 }
 
 export async function createProject(name: string, parent = process.cwd()): Promise<Project> {
