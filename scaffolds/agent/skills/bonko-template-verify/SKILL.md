@@ -74,6 +74,16 @@ If Chromium is missing, run `bonko browser install`. Inspect the JSON output and
   - _Cause_: Fixed widths or unconstrained elements cause horizontal scrollbars.
   - _Fix_: Set `.template-viewport { overflow-x: hidden; }` and ensure card containers use `max-width: 360px; width: 100%; box-sizing: border-box;`.
 
+## Verify playback duration and photo pacing
+
+Apply [the author skill's playback duration and photo pacing rules](../bonko-template-author/SKILL.md). Record a timeline from the start gesture to natural completion using active playback time, excluding loading, gesture waits and pauses.
+
+- Verify the complete automatic sequence, including opening, transitions and any audio hold, finishes within **15 seconds**. The host's 30-second safety deadline and a passing natural-completion check do not prove compliance with this stricter authoring requirement.
+- Exercise one photo and the maximum supported photo count. Each photo must be fully visible for approximately **3 seconds**, excluding obscured entrance/exit time. For 5–10 photos, verify readable simultaneous groups or collages and approximately 3 seconds per group; no supplied photo or caption may be omitted.
+- Confirm the packaged audio is at most **10.0 seconds**, including its tail, and that cue offsets plus validated startup allowance fit the overall 15-second budget. Verify full playback as described below; reject a timeline that meets the cap only by cutting audio off.
+- Verify the final still presentation preserves readable photos, captions and personal text after completion, with no timed disappearance. Pause must freeze the active clock; replay starts a fresh budget. Skip and reduced motion must bypass the sequence and expose the complete static content.
+- Report measured total time, photo/group hold times, maximum-count layout and audio completion evidence. Mark timing or listening review unverified when not exercised; existing automated protocol checks alone do not verify this pacing policy.
+
 ## Verify full audio playback separately
 
 The 18 protocol checks verify decoding, duration limits and natural completion, but do not prove the last audible sample played. For any template with audio, validate the packaged track in the real host, using host-side media instrumentation or a recorded listening review; never add direct media playback or host DOM access to the sandboxed template.
