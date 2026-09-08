@@ -75,9 +75,9 @@ test('new creates flat projects exclusively and resolves them from nested folder
     const config = JSON.parse(await readFile(path.join(project.root, 'bonko.json'), 'utf8'));
     await writeFile(
       path.join(project.root, 'bonko.json'),
-      JSON.stringify({ ...config, cliVersion: '99.0.0' }),
+      JSON.stringify({ ...config, schemaVersion: 99 }),
     );
-    await assert.rejects(findProject(project.root), /not supported/);
+    await assert.rejects(findProject(project.root), /Invalid project configuration/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
@@ -139,13 +139,13 @@ test('a damaged nested project never falls back to its parent', async () => {
   }
 });
 
-test('compatible historical projects run without rewriting pins; unknown versions stay blocked', async () => {
+test('CLI version metadata does not block projects or get rewritten; invalid schemas stay blocked', async () => {
   const parent = await mkdtemp(path.join(tmpdir(), 'bonko-compatibility-'));
   try {
     const project = await createProject('old-note', parent);
     const marker = path.join(project.root, 'bonko.json');
     const editorBefore = await readFile(path.join(project.root, 'tsconfig.json'), 'utf8');
-    for (const version of ['0.1.0', '0.1.1', '0.1.2', '0.1.3', '0.1.4', '0.1.5', '0.1.6']) {
+    for (const version of ['0.1.0', '0.1.7', '0.1.8', '0.1.9', '0.0.9', '0.1.999', '99.0.0']) {
       const original = JSON.stringify({ schemaVersion: 1, cliVersion: version });
       await writeFile(marker, original);
       assert.deepEqual(await findProject(path.join(project.root, 'src')), project);
@@ -157,9 +157,14 @@ test('compatible historical projects run without rewriting pins; unknown version
       assert.equal(JSON.parse(result.stdout).ok, true);
       assert.equal(await readFile(marker, 'utf8'), original);
     }
-    for (const version of ['0.0.9', '0.1.999', '0.2.0', '1.0.0']) {
-      await writeFile(marker, JSON.stringify({ schemaVersion: 1, cliVersion: version }));
-      await assert.rejects(findProject(project.root), /not supported.*bonko use/);
+    for (const config of [
+      { schemaVersion: 2, cliVersion: '0.1.8' },
+      { schemaVersion: 1, cliVersion: 'invalid' },
+      { schemaVersion: 1, cliVersion: 8 },
+      { schemaVersion: 1 },
+    ]) {
+      await writeFile(marker, JSON.stringify(config));
+      await assert.rejects(findProject(project.root), /Invalid project configuration/);
     }
     await writeFile(marker, JSON.stringify({ schemaVersion: 1, cliVersion: '0.1.2' }));
     const manifest = JSON.parse(await readFile(path.join(project.root, 'manifest.json'), 'utf8'));

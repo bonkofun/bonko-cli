@@ -76,7 +76,7 @@ Checks the latest stable GitHub release and upgrades the installation used by th
 
 Requires network access, npm, curl and write access to the installation. System installations may require the same privileges used during installation; the command does not invoke sudo automatically. Workspace checkouts cannot upgrade a global installation. Previous versions remain installed for `bonko use <version>`.
 
-Existing projects retain their `bonko.json` version pin and files, including skills. After upgrading, run `bonko dev` in the existing project: this CLI accepts projects created with 0.1.0–0.1.3 as well as its own version. Compatible projects use the active CLI and its updated Studio without editing configuration or installing the older CLI. Compatibility is explicitly reviewed, not inferred from a shared major/minor number. Unknown or unsupported versions still require `bonko use <version>` (install that release first if missing).
+Existing projects retain their `bonko.json` creation-version record and files, including skills. After upgrading, run `bonko dev` in the existing project. `cliVersion` is metadata, not an execution pin: a different CLI version does not block dev/build/check/pack. Compatibility is determined by the supported project `schemaVersion` and template manifest/SDK validation, not a CLI version allowlist. Invalid configuration and unsupported template protocols still fail validation. Use `bonko use <version>` when you explicitly want an already-installed version.
 
 ### Preview port already in use
 
@@ -97,7 +97,7 @@ Use the same installation options as before if you customized the prefix or comm
 
 ```text
 birthday-card/
-  bonko.json          Pinned CLI version
+  bonko.json          Project schema and creating CLI version
   manifest.json       Template metadata, configuration and asset declarations
   src/main.tsx        Template entry and custom components
   assets/             Declared images and short audio
@@ -112,7 +112,7 @@ birthday-card/
   dist/              Verified delivery packages
 ```
 
-Commands also work from project subdirectories. Builds use the CLI's fixed dependencies, not project Vite configuration or environment files. `bonko.json` records the project CLI version; the active CLI accepts its own version and explicitly supported historical versions for dev/build/check/pack. For exact-version execution, use `bonko use <version>` to select an installed version, or install the missing release first. Project pins are never silently rewritten. Editor paths refer to the local CLI installation and may need updating when moving a project to another computer; CLI builds resolve dependencies independently.
+Commands also work from project subdirectories. Builds use the CLI's fixed dependencies, not project Vite configuration or environment files. `bonko.json` records the creating CLI version without restricting the active CLI to that version. For exact-version execution, use `bonko use <version>` to select an installed version, or install the missing release first. Recorded versions are never silently rewritten. Editor paths refer to the local CLI installation and may need updating when moving a project to another computer; CLI builds resolve dependencies independently.
 
 Templates may import `react`, `react/jsx-runtime`, `react-dom/client`, `motion/react`, `@bonko/template-sdk/runtime-client`, and relative files inside `src/`. Use native DOM/CSS, declared Canvas/WebGL capabilities, and SDK-managed short audio. Every template must support a complete static state, pause, cleanup, reduced motion and keyboard interaction.
 
@@ -126,7 +126,7 @@ New projects include `bonko-template-author` and `bonko-template-verify` under `
 
 Agents that support skill discovery can load these workflows directly; other agents can read the Markdown files. No separate Studio repository or skill installation is needed. The skills guide development and review, while the CLI and SDK enforce checks. These files stay out of template delivery ZIPs.
 
-This behavior requires a CLI release containing the scaffold skills. Upgrading the CLI does not change existing projects. To add guidance to an older project, generate a temporary project with the appropriate CLI version and copy its AGENTS.md, DEVELOPMENT.md and `.agents/skills/` after reviewing compatibility and preserving any existing instructions. Do not rewrite the old project's CLI pin to bypass a version mismatch.
+This behavior requires a CLI release containing the scaffold skills. Upgrading the CLI does not change existing projects. To add guidance to an older project, generate a temporary project with the appropriate CLI version and copy its AGENTS.md, DEVELOPMENT.md and `.agents/skills/` after reviewing compatibility and preserving any existing instructions. Keep the old project's CLI creation-version record unchanged; it is not an execution restriction.
 
 ## Develop and verify the CLI
 

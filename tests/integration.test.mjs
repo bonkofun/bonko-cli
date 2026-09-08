@@ -291,7 +291,7 @@ test(
       await run(executable, ['new', 'release-note'], parent);
       const project = path.join(parent, 'release-note');
       // A fresh installation has no old CLI to fall back to after an upgrade.
-      const oldMarker = JSON.stringify({ schemaVersion: 1, cliVersion: '0.1.2' });
+      const oldMarker = JSON.stringify({ schemaVersion: 1, cliVersion: '0.1.8' });
       await writeFile(path.join(project, 'bonko.json'), oldMarker);
       await assertTemplateGuidance(project);
       await assert.rejects(access(path.join(project, 'node_modules')), { code: 'ENOENT' });
