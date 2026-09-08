@@ -7,6 +7,11 @@ import { validatePreviewPhotos } from '../dist-cli/engine/preview-photos.js';
 import { createProject } from '../dist-cli/project.js';
 import { buildRuntime } from '../dist-cli/engine/runtime-build.js';
 
+const sample = {
+  recipientName: 'Grace',
+  message: 'Thank you for being here.',
+  senderName: 'David',
+};
 const assets = {
   cover: { kind: 'image', path: 'assets/cover.webp' },
   demo: { kind: 'image', path: 'assets/demo.webp' },
@@ -14,7 +19,7 @@ const assets = {
   audio: { kind: 'audio', path: 'assets/sound.mp3' },
 };
 test('preview photo metadata permits old drafts and validates complete distinct image references', () => {
-  const manifest = { assets, cover: 'cover', config: {} };
+  const manifest = { assets, sample, cover: 'cover', config: {} };
   validatePreviewPhotos(manifest);
   validatePreviewPhotos({
     ...manifest,
@@ -71,10 +76,26 @@ test('every demonstration photo requires a nonempty caption bounded to 80 charac
       () =>
         validatePreviewPhotos({
           assets,
+          sample,
           cover: 'cover',
           config: { previewPhoto1: 'demo', previewCaption1: value },
         }),
       /previewCaption1/,
+    );
+  }
+});
+
+test('demonstration previews require sample recipient, message and sender', () => {
+  for (const field of ['recipientName', 'message', 'senderName']) {
+    assert.throws(
+      () =>
+        validatePreviewPhotos({
+          assets,
+          cover: 'cover',
+          config: { previewPhoto1: 'demo', previewCaption1: 'A memory' },
+          sample: { ...sample, [field]: ' ' },
+        }),
+      new RegExp(`sample.${field}`),
     );
   }
 });

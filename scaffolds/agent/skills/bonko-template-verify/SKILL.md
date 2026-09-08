@@ -17,6 +17,8 @@ Read [DEVELOPMENT.md](../../../DEVELOPMENT.md), especially checks, lifecycle, as
 
 ## Verify generated demonstration photographs
 
+Complete the same demonstration story with `sample.recipientName` (1–30 characters), `sample.message` (1–160) and `sample.senderName` (1–30). Write meaningful, occasion-appropriate example names and a finished message that fit the generated photos; do not deliver generic `Their name`, empty values or instructions such as `Enter message`. Use the existing sample object, not new top-level name/message/sender fields or config duplicates. These are preview defaults, never replacements for real recipient content or the user's optional sender.
+
 Give every demonstration photo its own meaningful description in `config.previewCaptionN`, paired with `previewPhotoN` in the same order. Require 1–80 characters per description, keep text outside the image, and verify the correct caption follows each photo in both animated and static previews. Do not fill real user descriptions with demo text.
 
 Use DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Require one independently generated, occasion-appropriate photograph for each supported slot, with distinct declared image assets and consecutive `config.previewPhoto1` through `previewPhotoN` references matching `maxPhotos` (default one). Reject finished deliveries containing blank blocks, reused catalog covers, missing files, private user photos or undocumented provenance. Decode and inspect the photographs at their actual frame crops.

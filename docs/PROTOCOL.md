@@ -207,3 +207,15 @@ The CLI validates declared preview-photo references and requires a complete, dis
 On upload, the platform must validate these references and image bytes, retain the files with the template version, and resolve them through its normal verified asset storage. Hosts use them only for explicitly identified sample previews before the user supplies photos; they must never count as user uploads or become a newly created private link's photos. Templates continue to render host-supplied photo content and crop transforms, rather than silently replacing real content with their demo assets. Verify host consumption separately; CLI packaging alone does not prove a deployed host uses this metadata.
 
 Each demonstration photo requires a matching `config.previewCaptionN`: meaningful plain text describing that photo, 1–80 characters, not an empty string or a generic filename. Keep the same numbering and count as previewPhotoN. Captions are editable text metadata, never baked into generated photographs. Templates render the host-supplied photo notes in interactive and static presentations. The host removes previewPhoto/previewCaption metadata before runtime initialization and passes only the selected demo captions using the existing fixed-width bonkoPhotoNotes contract, preventing ten demo captions from exhausting runtime config space. Real user photos and descriptions replace the entire demo set; absent user descriptions stay absent.
+
+A finished demonstration also requires meaningful `sample.recipientName` (1–30 characters), `sample.message` (1–160) and `sample.senderName` (1–30), coherent with the photos and captions. Packages declaring demo photos are rejected if any of these values is blank or too long. Packages without demo metadata keep the existing optional-sender contract. Use the existing sample object, not a top-level `name`/`message`/`sender` extension:
+
+```json
+"sample": {
+  "recipientName": "Grace",
+  "message": "Thank you for filling our days with warmth, laughter, and love. Happy Thanksgiving!",
+  "senderName": "David"
+}
+```
+
+CLI preview initializes from sample content. The creation host uses sample name/message/sender only as preview defaults for missing input during the demo; they never satisfy required user inputs or enter a saved link. An omitted user sender remains omitted after the user supplies their own photo.

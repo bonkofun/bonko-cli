@@ -2,13 +2,24 @@ import type { TemplateSubmission } from '@bonko/template-sdk/submission';
 
 /** Optional authoring metadata; existing drafts without demo photos remain buildable. */
 export function validatePreviewPhotos(
-  manifest: Pick<TemplateSubmission, 'config' | 'assets' | 'cover'>,
+  manifest: Pick<TemplateSubmission, 'config' | 'assets' | 'cover' | 'sample'>,
 ) {
   const keys = Object.keys(manifest.config).filter((key) => key.startsWith('previewPhoto'));
   const captionKeys = Object.keys(manifest.config).filter((key) =>
     key.startsWith('previewCaption'),
   );
   if (!keys.length && !captionKeys.length) return;
+  for (const [field, limit] of [
+    ['recipientName', 30],
+    ['message', 160],
+    ['senderName', 30],
+  ] as const) {
+    const text = manifest.sample[field];
+    if (typeof text !== 'string' || !text.trim() || text.length > limit)
+      throw new Error(
+        `sample.${field} must contain 1–${limit} characters for demonstration previews`,
+      );
+  }
   const max = manifest.config.maxPhotos ?? 1;
   if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > 10)
     throw new Error('Preview photos require maxPhotos between 1 and 10');
