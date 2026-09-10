@@ -1,4 +1,5 @@
 import { PhotoList } from '@/components/photo-list';
+import { TemplatePackage } from '@/components/template-package';
 import { TemplateSettings } from '@/components/template-settings';
 import { withoutPreviewMetadata } from '../src/engine/preview-photos.js';
 import React, { useEffect, useRef, useState } from 'react';
@@ -417,7 +418,11 @@ function Workspace({
             <TabsTrigger value="test" aria-label="Test the experience">
               Test
             </TabsTrigger>
+            <TabsTrigger value="pack">Pack</TabsTrigger>
           </TabsList>
+          <TabsContent value="pack">
+            <TemplatePackage slug={preview.submission.slug} />
+          </TabsContent>
           <TabsContent value="config" forceMount className="data-[state=inactive]:hidden">
             <TemplateSettings slug={preview.submission.slug} photoCount={photos.length} />
           </TabsContent>

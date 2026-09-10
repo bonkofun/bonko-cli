@@ -171,3 +171,21 @@ More details: [Architecture](docs/ARCHITECTURE.md), [project skills](docs/SKILLS
 Bonko CLI is released under the [MIT License](LICENSE). Third-party dependencies and user-supplied assets retain their own licenses. See [source provenance](PROVENANCE.md).
 
 The Audio tab remembers the sound preference through static editing and Replay. Enable sound changes this preference immediately; it does not audition a clip in static mode. Click Replay, then Play, then trigger the template interaction to hear its cues. Play applies the preference within the host gesture, while static/reduced-motion presentations remain silent.
+
+### Pack from Studio
+
+Use **Personal → Photo → Config → Test → Pack**. Save template metadata in Config,
+check the interaction in Test, then review the saved name, slug, tags, USD price,
+photo limit and author in Pack. Local uploaded preview photos are never packaged.
+
+Enter a new template version in `N.0` format (for example, `2.0` after `1.0`).
+It must exceed the manifest version and existing local package versions.
+**Check & pack** runs the CLI browser verification against a temporary snapshot.
+Only successful checks save `dist/<slug>-<version>.bonko.zip` and update
+`manifest.json`. Changes to source files during checks abort the save. Download
+the verified archive from Studio; review the remaining manual checks before publishing.
+This action does not upload, publish or make a Git commit.
+
+The slug is the fixed `manifest.json` identifier, not derived from an uploaded ZIP
+filename. Project creation requires lowercase letters, digits and single hyphens
+(e.g. `our-golden-hour`); display names may use spaces and capitalization.

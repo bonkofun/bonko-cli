@@ -67,6 +67,14 @@ SIGINT/SIGTERM abort subprocesses and clean staging/locks while keeping the prev
 
 Checksums detect corruption, while publisher authenticity depends on the HTTPS release source and GitHub account controls. The CLI does not claim cryptographically signed provenance.
 
+`src/engine/studio-package.ts` manages per-project asynchronous pack jobs behind
+token-protected routes. It shares the configuration write lock, validates the saved
+manifest revision and increasing template version, snapshots only allowed template
+source files, and runs the existing browser-check/pack pipeline in a temporary
+project. Source changes abort publication to the local dist directory. Successful
+jobs save an exclusive versioned ZIP and replace the manifest version; downloads
+verify the archive hash. This service does not upload or publish templates.
+
 ## Studio interaction
 
 Live preview automatically starts the template's own opening flow. Audio is enabled by default, with one audio scope per mounted preview; opening an interactive envelope requires only its own gesture. Browser autoplay restrictions still apply before user interaction. Replay in the preview size toolbar restarts the experience. Studio has no Audio tab or bottom playback controls; authored static and reduced-motion checks remain in the Test tab. Editing uses an authored static view.

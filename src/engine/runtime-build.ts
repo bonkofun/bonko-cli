@@ -41,7 +41,7 @@ export class RuntimeBuildError extends Error {
     this.diagnostics = diagnostics;
   }
 }
-async function tree(
+export async function readTemplateSource(
   root: string,
   prefix = '',
   budget = { bytes: 0, count: 0 },
@@ -57,7 +57,7 @@ async function tree(
     const file = path.join(root, relative),
       stat = await lstat(file);
     if (stat.isSymbolicLink()) throw new Error('No symlinks in templates');
-    if (stat.isDirectory()) Object.assign(result, await tree(root, relative, budget));
+    if (stat.isDirectory()) Object.assign(result, await readTemplateSource(root, relative, budget));
     else if (stat.isFile()) {
       budget.bytes += stat.size;
       if (++budget.count > LIMITS.files || budget.bytes > LIMITS.expanded)
@@ -181,7 +181,7 @@ export function typecheckRuntime(folder: string, source: Record<string, Buffer>)
 export async function buildRuntime(root: string, slug: string): Promise<BuiltTemplate> {
   if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(slug)) throw new Error('Invalid slug');
   const folder = root;
-  const all = await tree(folder);
+  const all = await readTemplateSource(folder);
   if (!all['manifest.json'] || !all['LICENSE.md'] || !all['src/main.tsx'])
     throw new Error('Expected manifest.json, LICENSE.md and src/main.tsx');
   const input = JSON.parse(all['manifest.json'].toString('utf8'));
