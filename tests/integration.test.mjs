@@ -419,9 +419,20 @@ test(
       server = await standaloneServerFor(project.root, project.slug, toolRoot, 0);
       browser = await chromium.launch();
       const page = await browser.newPage();
+      let photoInit = null;
+      // Replay replaces the iframe; collect the init snapshot without retaining a Frame handle.
+      await page.exposeFunction('__reportPhotoInit', (snapshot) => {
+        photoInit = snapshot;
+      });
       await page.addInitScript(() => {
         window.addEventListener('message', (event) => {
-          if (event.data?.type === 'init') window.__photoInit = event.data;
+          if (event.data?.type !== 'init') return;
+          const data = event.data;
+          void window.__reportPhotoInit({
+            count: data.config?.bonkoPhotoCount,
+            transform: data.config?.bonkoPhotoTransform2,
+            bytes: data.assets?.['bonko-photo-2']?.bytes?.byteLength,
+          });
         });
       });
       await page.goto(server.origin);
@@ -438,22 +449,15 @@ test(
       await expect(
         page.locator('[data-preview-layer="current"] [data-static="ready"]'),
       ).toBeVisible();
+      photoInit = null;
       await page.getByRole('button', { name: 'Replay', exact: true }).click();
       await expect
-        .poll(async () => {
-          const child = page.frames().find((frame) => frame.url().includes('/v3/'));
-          return child?.evaluate(() => window.__photoInit?.config.bonkoPhotoCount);
-        })
-        .toBe(2);
-      const child = page.frames().find((frame) => frame.url().includes('/v3/'));
-      assert.equal(
-        await child.evaluate(() => window.__photoInit.config.bonkoPhotoTransform2),
-        'translate(0px, 0px) scale(1.05)',
-      );
-      assert.equal(
-        await child.evaluate(() => window.__photoInit.assets['bonko-photo-2'].bytes.byteLength),
-        buffer.length,
-      );
+        .poll(() => photoInit)
+        .toEqual({
+          count: 2,
+          transform: 'translate(0px, 0px) scale(1.05)',
+          bytes: buffer.length,
+        });
       await page
         .locator('#photo')
         .setInputFiles(
