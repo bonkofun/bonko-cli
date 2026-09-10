@@ -19,7 +19,6 @@ export type StudioSettings = {
   author: string;
   tags: string[];
   maxPhotos: number;
-  access: 'free' | 'premium';
   priceCents: number;
 };
 const digest = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -40,7 +39,6 @@ export async function readStudioConfig(root: string) {
       author: manifest.author,
       tags: manifest.tags,
       maxPhotos: Number(manifest.config.maxPhotos ?? 1),
-      access: manifest.access,
       priceCents: Number(manifest.config.suggestedPriceCents ?? 0),
     } satisfies StudioSettings,
   };
@@ -57,7 +55,7 @@ export async function saveStudioConfig(root: string, input: unknown) {
   )
     throw new StudioConfigError(422, 'Settings and revision are required');
   const settings = value.settings as Record<string, unknown>;
-  const allowed = ['name', 'description', 'author', 'tags', 'maxPhotos', 'access', 'priceCents'];
+  const allowed = ['name', 'description', 'author', 'tags', 'maxPhotos', 'priceCents'];
   if (Object.keys(settings).some((key) => !allowed.includes(key)))
     throw new StudioConfigError(422, 'Unknown settings field');
   if (
@@ -69,12 +67,9 @@ export async function saveStudioConfig(root: string, input: unknown) {
   if (
     !Number.isSafeInteger(settings.priceCents) ||
     Number(settings.priceCents) < 0 ||
-    Number(settings.priceCents) > 999999 ||
-    (settings.access === 'premium' && Number(settings.priceCents) === 0)
+    Number(settings.priceCents) > 990
   )
-    throw new StudioConfigError(422, 'Premium price must be between $0.01 and $9,999.99');
-  if (settings.access === 'free' && settings.priceCents !== 0)
-    throw new StudioConfigError(422, 'Free templates must have a zero price');
+    throw new StudioConfigError(422, 'Price must be between $0.00 and $9.90 USD');
   await safeDirectory(root, '.bonko');
   const lockPath = path.join(root, '.bonko', 'studio-config.lock');
   let lock;
@@ -98,7 +93,7 @@ export async function saveStudioConfig(root: string, input: unknown) {
       description: settings.description,
       author: settings.author,
       tags: settings.tags,
-      access: settings.access,
+      access: settings.priceCents === 0 ? 'free' : 'premium',
       config: {
         ...raw.config,
         maxPhotos: settings.maxPhotos,

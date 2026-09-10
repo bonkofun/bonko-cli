@@ -22,7 +22,6 @@ test('Studio configuration persists metadata and rejects conflicts, invalid inpu
       description: 'Four little moments.',
       author: 'Jamie',
       tags: ['Birthday'],
-      access: 'premium',
       priceCents: 499,
     };
     const saved = await saveStudioConfig(root, { revision: snapshot.revision, settings: next });
@@ -31,6 +30,7 @@ test('Studio configuration persists metadata and rejects conflicts, invalid inpu
     assert.deepEqual(manifest.assets, original.assets);
     assert.deepEqual(manifest.sample, original.sample);
     assert.equal(manifest.config.suggestedPriceCurrency, 'USD');
+    assert.equal(manifest.access, 'premium');
     assert.equal(await readFile(path.join(root, 'tsconfig.json'), 'utf8'), compiler);
     assert.equal(withoutPreviewMetadata(manifest.config).suggestedPriceCents, undefined);
     await assert.rejects(
@@ -40,6 +40,8 @@ test('Studio configuration persists metadata and rejects conflicts, invalid inpu
     for (const patch of [
       { maxPhotos: 11 },
       { priceCents: -1 },
+      { priceCents: 991 },
+      { priceCents: 1.5 },
       { access: 'free', priceCents: 499 },
       { tags: ['x'.repeat(21)] },
       { author: '' },
@@ -118,6 +120,27 @@ test('Studio configuration endpoint authenticates writes and limits them to disc
     assert.equal((await readStudioConfig(project.root)).settings.maxPhotos, 3);
   } finally {
     await server?.close();
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test('Studio derives Free/Premium from a price between zero and 990 cents', async () => {
+  const parent = await mkdtemp(path.join(tmpdir(), 'bonko-price-'));
+  try {
+    const { root } = await createProject('priced-note', parent);
+    for (const priceCents of [0, 1, 990, 499, 0]) {
+      const before = await readStudioConfig(root);
+      const saved = await saveStudioConfig(root, {
+        ...before,
+        settings: { ...before.settings, priceCents },
+      });
+      assert.equal(saved.settings.priceCents, priceCents);
+      assert.equal('access' in saved.settings, false);
+      const manifest = JSON.parse(await readFile(path.join(root, 'manifest.json'), 'utf8'));
+      assert.equal(manifest.access, priceCents === 0 ? 'free' : 'premium');
+      assert.equal(manifest.config.suggestedPriceCents, priceCents);
+    }
+  } finally {
     await rm(parent, { recursive: true, force: true });
   }
 });

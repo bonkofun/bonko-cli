@@ -447,11 +447,26 @@ test(
       await expect(page.getByText('2 / 3 photos', { exact: true })).toBeVisible();
       await page.getByLabel('Photo 1 description', { exact: true }).fill('First memory');
       await page.getByLabel('Photo 2 description', { exact: true }).fill('Second memory');
-      await page.getByRole('button', { name: 'Move photo 2 up' }).click();
+      await page.getByRole('button', { name: 'Drag photo 2 to reorder' }).press('ArrowUp');
       await expect(page.getByLabel('Photo 1 description', { exact: true })).toHaveValue(
         'Second memory',
       );
-      await page.getByRole('button', { name: 'Move photo 1 down' }).click();
+      const handle = page.getByRole('button', { name: 'Drag photo 1 to reorder' });
+      await handle.hover();
+      const source = await handle.boundingBox();
+      const target = await page
+        .getByRole('button', { name: 'Drag photo 2 to reorder' })
+        .boundingBox();
+      assert.ok(source && target);
+      await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2 + 15, {
+        steps: 16,
+      });
+      await page.mouse.up();
+      await expect(page.getByLabel('Photo 1 description', { exact: true })).toHaveValue(
+        'First memory',
+      );
       await page.getByRole('button', { name: '2. second.png' }).click();
       await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
       await expect(
@@ -577,9 +592,8 @@ test(
       await page.getByLabel('Description', { exact: true }).fill('Three moments to keep.');
       await page.getByLabel('Tags', { exact: true }).fill('Love, Memories');
       await page.getByLabel('Author name', { exact: true }).fill('Jamie');
-      await page.getByRole('combobox', { name: 'Access', exact: true }).click();
-      await page.getByRole('option', { name: 'Premium', exact: true }).click();
-      await page.getByLabel('Suggested price (USD)', { exact: true }).fill('4.99');
+      await expect(page.getByRole('combobox', { name: 'Access', exact: true })).toHaveCount(0);
+      await page.getByLabel('Price (USD)', { exact: true }).fill('4.99');
       await page.getByRole('tab', { name: 'Photo & framing' }).click();
       await page.getByRole('tab', { name: 'Template configuration' }).click();
       await expect(page.getByLabel('Template name', { exact: true })).toHaveValue(
@@ -609,6 +623,7 @@ test(
         );
       }
       assert.equal(saved.config.suggestedPriceCents, 499);
+      assert.equal(saved.access, 'premium');
       assert.equal(saved.author, 'Jamie');
       await page.reload();
       await page.getByRole('tab', { name: 'Photo & framing' }).click();
@@ -617,6 +632,23 @@ test(
       await expect(page.getByLabel('Template name', { exact: true })).toHaveValue(
         'Our Golden Hour',
       );
+      await page.getByLabel('Price (USD)', { exact: true }).fill('0');
+      await page.getByRole('button', { name: 'Save configuration' }).click();
+      await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
+      assert.equal(JSON.parse(await readFile(manifestFile, 'utf8')).access, 'free');
+      await page.getByLabel('Price (USD)', { exact: true }).fill('9.91');
+      assert.equal(
+        await page
+          .getByLabel('Price (USD)', { exact: true })
+          .evaluate((input) => input.validity.rangeOverflow),
+        true,
+      );
+      await page.getByLabel('Price (USD)', { exact: true }).fill('9.90');
+      await page.getByRole('button', { name: 'Save configuration' }).click();
+      await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
+      const priced = JSON.parse(await readFile(manifestFile, 'utf8'));
+      assert.equal(priced.access, 'premium');
+      assert.equal(priced.config.suggestedPriceCents, 990);
       for (const width of [375, 390, 430, 768, 1440]) {
         await page.setViewportSize({ width, height: 1000 });
         assert.equal(

@@ -6,14 +6,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Field, FieldLabel, FieldDescription, FieldError, FieldGroup } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 
 type Snapshot = { revision: string; settings: StudioSettings };
@@ -59,8 +51,8 @@ export function TemplateSettings({ slug, photoCount }: { slug: string; photoCoun
       setError('Remove extra local photos before reducing the photo count.');
       return;
     }
-    if (draft.access === 'premium' && !/^\d+(\.\d{1,2})?$/.test(price)) {
-      setError('Enter a USD price with up to two decimal places.');
+    if (!/^\d+(\.\d{1,2})?$/.test(price) || Number(price) < 0 || Number(price) > 9.9) {
+      setError('Enter a price from $0.00 to $9.90 USD, with up to two decimal places.');
       return;
     }
     saving.current = true;
@@ -79,7 +71,7 @@ export function TemplateSettings({ slug, photoCount }: { slug: string; photoCoun
               .split(',')
               .map((tag) => tag.trim())
               .filter(Boolean),
-            priceCents: draft.access === 'free' ? 0 : Math.round(Number(price) * 100),
+            priceCents: Math.round(Number(price) * 100),
           },
         }),
       });
@@ -156,39 +148,22 @@ export function TemplateSettings({ slug, photoCount }: { slug: string; photoCoun
                 </Field>
                 <Separator />
                 <Field>
-                  <FieldLabel htmlFor="template-access">Access</FieldLabel>
-                  <Select
-                    value={draft.access}
-                    onValueChange={(value) =>
-                      setDraft({ ...draft, access: value === 'premium' ? 'premium' : 'free' })
-                    }
-                  >
-                    <SelectTrigger id="template-access" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="free">Free</SelectItem>
-                        <SelectItem value="premium">Premium</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <FieldLabel htmlFor="template-price">Price (USD)</FieldLabel>
+                  <Input
+                    id="template-price"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={9.9}
+                    step={0.01}
+                    required
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                  />
+                  <FieldDescription>
+                    $0 is free. Any price above $0 is paid. Maximum $9.90.
+                  </FieldDescription>
                 </Field>
-                {draft.access === 'premium' ? (
-                  <Field>
-                    <FieldLabel htmlFor="template-price">Suggested price (USD)</FieldLabel>
-                    <Input
-                      id="template-price"
-                      inputMode="decimal"
-                      required
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                    />
-                    <FieldDescription>
-                      Author suggestion for platform review. Does not activate payments.
-                    </FieldDescription>
-                  </Field>
-                ) : null}
                 <Field>
                   <FieldLabel htmlFor="template-author">Author name</FieldLabel>
                   <Input
