@@ -41,8 +41,8 @@ Use these composition decisions across occasions; the burgundy, antique gold and
 
 ## Catalog cover and Receiver opening are separate assets
 
-- Deliver the catalog cover at **exactly 640 × 800 px**, 4:5, as WebP unless the brief specifies another size. Compose dedicated artwork for this ratio rather than stretching a tall phone screenshot. Use the same subject, materials and atmosphere as the actual template; a cover must not promise a different experience.
-- For generated covers, specify the exact short display text, legible typography, safe margins, subject placement and exclusions in the prompt. Inspect spelling and thumbnail legibility after generation. High-resolution source artwork may be downsampled; verify the final file's decoded dimensions, sharpness and byte size rather than assuming the generator honored its prompt. Use embossed lettering when appropriate to the art direction; never bake recipient content into catalog artwork.
+- Deliver a dedicated **3:2 landscape catalog cover**, preferably WebP. **1200 × 800 px is the recommended production size, not an exact-resolution requirement**; 900 × 600, 1536 × 1024 and 1800 × 1200 px are also suitable when sharp at the intended display size and within package budgets. The catalog displays a 3:2 frame with `object-fit: cover`, so other ratios are cropped. Compose for that frame rather than stretching a tall phone screenshot. Use the same subject, materials and atmosphere as the actual template; a cover must not promise a different experience.
+- For generated covers, specify the exact short display text, legible typography, safe margins, subject placement and exclusions in the prompt. Inspect spelling and thumbnail legibility after generation, including the mobile two-column catalog. Keep important text and subjects away from the edges to allow for rounded corners and hover zoom; leave detailed descriptions outside the artwork. High-resolution source artwork may be downsampled; verify the final file's decoded dimensions, sharpness and byte size rather than assuming the generator honored its prompt. Use embossed lettering when appropriate to the art direction; never bake recipient content into catalog artwork.
 - For `config.receiverOpening: true`, declare a separate opening image and set `config.receiverOpeningPoster` to its asset ID. Capture the actual still opening at suitable device pixel density, with the opening hint but without editor controls, host toolbar/footer or recipient content. This poster matches the runtime opening; it is not the catalog cover.
 - In the Receiver's `ready` state, show that still composition without sound or loops. When the host supplies `config.bonkoReceiverOpening`, its single opening gesture starts playback; do not require a second click. Keep the normal reveal button for Studio and hosts without that flag. Follow DEVELOPMENT.md for the complete host contract.
 - Record generation provenance and conversions in `LICENSE.md`. Keep previous deliverables intact; update manifest asset references and inspect the new package's actual contents.
@@ -92,14 +92,14 @@ Choose reveal beats appropriate to the occasion: invitation → gesture/audio �
 
 Keep the catalog cover, background, and cutout assets as distinct, optimized files:
 
-| Asset                             | Recommended Dimensions               | Format       | Target Size | Purpose                                                                               |
-| :-------------------------------- | :----------------------------------- | :----------- | :---------- | :------------------------------------------------------------------------------------ |
-| **Catalog Cover (`cover`)**       | 640 × 800 px (4:5; required default) | WebP         | 50–120 KB   | Catalog store listing; high visual richness, 3D embossed lettering, celebratory mood. |
-| **Atmospheric Background (`bg`)** | 780 × 1368 px (vertical mobile)      | WebP         | 60–120 KB   | Fullscreen ambient background; soft bokeh, stardust, or velvet textures.              |
-| **Hero Focal Cutout**             | 400–640 px max dimension             | WebP (alpha) | 40–80 KB    | Transparent foreground subject (cake, gift, flowers); cropped tight to bounding box.  |
-| **Celebration Melody (`audio`)**  | Duration <= 10.0s                    | MP3          | 40–150 KB   | Musical greeting / chime; high clarity, under 10.0s platform limit.                   |
+| Asset                             | Recommended Dimensions                                    | Format       | Target Size | Purpose                                                                               |
+| :-------------------------------- | :-------------------------------------------------------- | :----------- | :---------- | :------------------------------------------------------------------------------------ |
+| **Catalog Cover (`cover`)**       | 1200 × 800 px recommended (3:2; other 3:2 sizes accepted) | WebP         | 50–120 KB   | Catalog store listing; high visual richness, 3D embossed lettering, celebratory mood. |
+| **Atmospheric Background (`bg`)** | 780 × 1368 px (vertical mobile)                           | WebP         | 60–120 KB   | Fullscreen ambient background; soft bokeh, stardust, or velvet textures.              |
+| **Hero Focal Cutout**             | 400–640 px max dimension                                  | WebP (alpha) | 40–80 KB    | Transparent foreground subject (cake, gift, flowers); cropped tight to bounding box.  |
+| **Celebration Melody (`audio`)**  | Duration <= 10.0s                                         | MP3          | 40–150 KB   | Musical greeting / chime; high clarity, under 10.0s platform limit.                   |
 
-- Dimension and byte targets for backgrounds/cutouts are optimization guidance; preserve useful existing assets and prioritize clean edges and readable text.
+- Pixel dimensions and byte targets in this table are optimization guidance, not exact-size validation rules; preserve useful existing assets and prioritize clean edges and readable text.
 - Never enlarge a previous 1× screenshot to simulate high-resolution artwork.
 - Use WebP quality 85–90 for photos and illustrations; inspect edges and text sharpness.
 - Ensure all assets are declared in `manifest.json` and attributed in `LICENSE.md`.
