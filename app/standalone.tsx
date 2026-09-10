@@ -603,6 +603,27 @@ function Workspace({
                       />
                     </Field>
                   ))}
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      aria-label="Reset photo framing"
+                      disabled={crop.scale === 1 && crop.x === 0 && crop.y === 0}
+                      onClick={() => {
+                        setCrop({ scale: 1, x: 0, y: 0 });
+                        if (photo)
+                          setCrops((previous) => {
+                            const next = new Map(previous);
+                            next.delete(photo);
+                            return next;
+                          });
+                        setEditing(true);
+                      }}
+                    >
+                      <IconRotateClockwise aria-hidden="true" data-icon="inline-start" />
+                      Reset
+                    </Button>
+                  </div>
                 </FieldGroup>
               </CardContent>
             </Card>

@@ -433,6 +433,7 @@ test(
             transform: data.config?.bonkoPhotoTransform2,
             bytes: data.assets?.['bonko-photo-2']?.bytes?.byteLength,
             notes: data.config?.bonkoPhotoNotes1,
+            primaryTransform: data.content?.photoTransform,
           });
         });
       });
@@ -469,6 +470,33 @@ test(
       );
       await page.getByRole('button', { name: '2. second.png' }).click();
       await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
+      await page.getByRole('button', { name: '1. first.png' }).click();
+      await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
+      await page.getByRole('slider', { name: 'Horizontal crop', exact: true }).press('ArrowLeft');
+      await page.getByRole('slider', { name: 'Vertical crop', exact: true }).press('ArrowLeft');
+      await page.getByRole('button', { name: 'Reset photo framing' }).click();
+      for (const [name, value] of [
+        ['Scale', '1'],
+        ['Horizontal crop', '0'],
+        ['Vertical crop', '0'],
+      ]) {
+        await expect(page.getByRole('slider', { name, exact: true })).toHaveAttribute(
+          'aria-valuenow',
+          value,
+        );
+      }
+      await expect(page.getByRole('button', { name: 'Reset photo framing' })).toBeDisabled();
+      await page.getByRole('button', { name: '2. second.png' }).click();
+      await expect(page.getByRole('slider', { name: 'Scale', exact: true })).toHaveAttribute(
+        'aria-valuenow',
+        '1.05',
+      );
+      await page.getByRole('button', { name: '1. first.png' }).click();
+      await expect(page.getByRole('slider', { name: 'Scale', exact: true })).toHaveAttribute(
+        'aria-valuenow',
+        '1',
+      );
+
       await expect(
         page.locator('[data-preview-layer="current"] [data-static="ready"]'),
       ).toBeVisible();
@@ -481,6 +509,7 @@ test(
           transform: 'translate(0px, 0px) scale(1.05)',
           bytes: buffer.length,
           notes: 'First memory'.padEnd(80) + 'Second memory'.padEnd(80),
+          primaryTransform: 'translate(0px, 0px) scale(1)',
         });
       await page
         .locator('#photo')
