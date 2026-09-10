@@ -133,6 +133,13 @@ test(
         await readFile(path.join(project.root, 'dist', download.suggestedFilename())),
       );
       assert.equal(downloaded.subarray(0, 2).toString(), 'PK');
+      const { inspectRuntimeBundle } = await import('@bonko/template-sdk/runtime-bundle');
+      const { packageInfo } = await import('../dist-cli/project.js');
+      assert.equal(
+        inspectRuntimeBundle(downloaded).dependencies['@bonkofun/cli'],
+        packageInfo.version,
+      );
+      assert.equal(inspectRuntimeBundle(downloaded).dependencies['@bonko/template-sdk'], '0.2.4');
       await page.setViewportSize({ width: 390, height: 844 });
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

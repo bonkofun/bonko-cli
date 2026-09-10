@@ -1,6 +1,6 @@
 {
   "name": "@bonkofun/cli",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Local Bonko template creation, preview, build and verification CLI",
   "type": "module",
   "private": true,
@@ -16,6 +16,7 @@
     "studio-dist",
     "scaffolds",
     "docs/PROTOCOL.md",
+    "docs/TEMPLATE_VERSIONING.md",
     "README.md",
     "PROVENANCE.md",
     "npm-shrinkwrap.json",

@@ -10,6 +10,7 @@ export async function updateSkills(start = process.cwd()) {
   const files = [
     ['AGENTS.md', 'scaffolds/agent/AGENTS.md'],
     ['DEVELOPMENT.md', 'docs/PROTOCOL.md'],
+    ['TEMPLATE_VERSIONING.md', 'docs/TEMPLATE_VERSIONING.md'],
     ...['bonko-template-author', 'bonko-template-verify'].map((name) => [
       `.agents/skills/${name}/SKILL.md`,
       `scaffolds/agent/skills/${name}/SKILL.md`,

@@ -114,6 +114,7 @@ export function TemplatePackage({ slug }: { slug: string }) {
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
               {Object.entries({
                 Slug: summary.slug,
+                'Packing CLI': summary.cliVersion,
                 'Current version': summary.version,
                 Tags: summary.tags.join(', ') || 'None',
                 Price:

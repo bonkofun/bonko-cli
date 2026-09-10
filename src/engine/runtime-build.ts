@@ -230,7 +230,13 @@ export async function buildRuntime(root: string, slug: string): Promise<BuiltTem
   const css = outputs.filter((file) => file.type === 'asset');
   if (css.length > 1 || css.some((file) => !file.fileName.endsWith('.css')))
     throw new Error('Use logical asset IDs, not imported media');
-  const dependencies: Record<string, string> = {};
+  const builder = JSON.parse(await readFile(path.join(toolRoot, 'package.json'), 'utf8')) as {
+    name: string;
+    version: string;
+  };
+  if (builder.name !== '@bonkofun/cli' || !/^\d+\.\d+\.\d+$/.test(builder.version))
+    throw new Error('Stable CLI build metadata is required');
+  const dependencies: Record<string, string> = { '@bonkofun/cli': builder.version };
   for (const name of packages) {
     const installed = await packageMetadata(name);
     dependencies[name] = installed.version;

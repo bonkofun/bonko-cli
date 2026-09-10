@@ -53,9 +53,9 @@ Complete the same demonstration story with `sample.recipientName` (1–30 charac
 
 Give every demonstration photo its own meaningful description in `config.previewCaptionN`, paired with `previewPhotoN` in the same order. Require 1–80 characters per description, keep text outside the image, and verify the correct caption follows each photo in both animated and static previews. Do not fill real user descriptions with demo text.
 
-Follow DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Generate the occasion-appropriate photo content yourself using available image-generation tooling and store one distinct image per supported photo slot in `assets/preview-photo-N.webp`. Do not reuse the catalog cover, a phone screenshot or a blank color block as a demonstration photograph. If generation is unavailable, report the missing deliverable; do not silently leave a placeholder.
+Follow DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Generate the occasion-appropriate photo content yourself using available image-generation tooling and store a coherent set of 1–10 distinct demo images in `assets/preview-photo-N.webp`. Do not reuse the catalog cover, a phone screenshot or a blank color block as a demonstration photograph. If generation is unavailable, report the missing deliverable; do not silently leave a placeholder.
 
-Declare every generated image in `manifest.assets`, then reference its logical ID with `config.previewPhoto1` through `previewPhotoN`. N must match the actual `maxPhotos` capacity, defaulting to one. Record generation provenance and terms in LICENSE.md. Keep demo assets separate from private test uploads, and continue rendering host-supplied photos and crop transforms. Inspect the final ZIP to ensure all demonstration images are included for upload; files merely placed in assets/ are not enough.
+Declare every generated image in `manifest.assets`, then reference its logical ID with `config.previewPhoto1` through `previewPhotoN`. N is the authored demo count (1–10), independent of `maxPhotos` upload capacity; retain and validate extra demos. Record generation provenance and terms in LICENSE.md. Keep demo assets separate from private test uploads, and continue rendering host-supplied photos and crop transforms. Inspect the final ZIP to ensure all demonstration images are included for upload; files merely placed in assets/ are not enough.
 
 ## Strict CSS compiler sandbox constraints
 
@@ -113,3 +113,7 @@ Keep the catalog cover, background, and cutout assets as distinct, optimized fil
 ## Iterate and deliver
 
 Run `bonko dev` for live visual iteration and `bonko build` after source changes. Review the phone preview across multiple viewports (375px, 390px, 430px), long messages, and different photo crops. Then follow [bonko-template-verify](../bonko-template-verify/SKILL.md) for automated checks and packaging. Explain the implemented behavior, verified results, and remaining manual review.
+
+## Delivery versions
+
+Read [TEMPLATE_VERSIONING.md](../../../TEMPLATE_VERSIONING.md). Use a new N.0 content version when packed bytes change. The packer records the actual CLI release automatically; do not hand-edit this declaration. Update skills, adapt source, check and repack older projects. Preserve released versions and never equate local verification with production compatibility.

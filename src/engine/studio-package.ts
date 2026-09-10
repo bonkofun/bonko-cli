@@ -13,6 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parseTemplateSubmission } from '@bonko/template-sdk/submission';
+import { packageInfo } from '../project.js';
 import { safeDirectory } from '../project.js';
 import { ensureBrowser } from '../browser.js';
 import { errorCode, errorMessage } from '../errors.js';
@@ -65,6 +66,7 @@ export async function packageSummary(root: string) {
     if (errorCode(error) !== 'ENOENT') throw error;
   }
   return {
+    cliVersion: packageInfo.version,
     revision: hash(text),
     slug: manifest.slug,
     name: manifest.name,
