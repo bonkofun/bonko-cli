@@ -55,6 +55,7 @@ Studio uses a viewport-fitted workbench with Personal, Photo, Audio and Test tab
 | `bonko pack`                      | Run checks again and create a `.bonko.zip` delivery package         |
 | `bonko browser install`           | Download Chromium ahead of time                                     |
 | `bonko help [command]`            | Show help; also supports `-h` and `--help`                          |
+| `bonko skills update [--json]`    | Refresh existing project skills and guidance with backups           |
 | `bonko upgrade`                   | Install and select the latest stable CLI release                    |
 | `bonko use <version>`             | Select a verified, already-installed CLI release                    |
 | `bonko version`                   | Show CLI, SDK and Node versions; also supports `-v` and `--version` |
@@ -76,7 +77,7 @@ Checks the latest stable GitHub release and upgrades the installation used by th
 
 Requires network access, npm, curl and write access to the installation. System installations may require the same privileges used during installation; the command does not invoke sudo automatically. Workspace checkouts cannot upgrade a global installation. Previous versions remain installed for `bonko use <version>`.
 
-Existing projects retain their `bonko.json` creation-version record and files, including skills. After upgrading, run `bonko dev` in the existing project. `cliVersion` is metadata, not an execution pin: a different CLI version does not block dev/build/check/pack. Compatibility is determined by the supported project `schemaVersion` and template manifest/SDK validation, not a CLI version allowlist. Invalid configuration and unsupported template protocols still fail validation. Use `bonko use <version>` when you explicitly want an already-installed version.
+Existing projects retain their `bonko.json` creation-version record and files. Use `bonko skills update` to explicitly refresh their bundled guidance after upgrading. After upgrading, run `bonko dev` in the existing project. `cliVersion` is metadata, not an execution pin: a different CLI version does not block dev/build/check/pack. Compatibility is determined by the supported project `schemaVersion` and template manifest/SDK validation, not a CLI version allowlist. Invalid configuration and unsupported template protocols still fail validation. Use `bonko use <version>` when you explicitly want an already-installed version.
 
 ### Preview port already in use
 
@@ -126,7 +127,15 @@ New projects include `bonko-template-author` and `bonko-template-verify` under `
 
 Agents that support skill discovery can load these workflows directly; other agents can read the Markdown files. No separate Studio repository or skill installation is needed. The skills guide development and review, while the CLI and SDK enforce checks. These files stay out of template delivery ZIPs.
 
-This behavior requires a CLI release containing the scaffold skills. Upgrading the CLI does not change existing projects. To add guidance to an older project, generate a temporary project with the appropriate CLI version and copy its AGENTS.md, DEVELOPMENT.md and `.agents/skills/` after reviewing compatibility and preserving any existing instructions. Keep the old project's CLI creation-version record unchanged; it is not an execution restriction.
+To refresh an existing template project, run:
+
+```sh
+bonko upgrade
+cd path/to/template
+bonko skills update
+```
+
+`skills update` copies guidance from the **active installed CLI**; it does not fetch remote files. Run it in a project or any of its subdirectories. It updates only `AGENTS.md`, `DEVELOPMENT.md`, and the bundled `bonko-template-author` / `bonko-template-verify` skills. Before replacement, changed originals are backed up under `.bonko/skills-backups/<id>/`, with an `update.json` plan. Review the backup to reapply any custom instructions. Unrelated skills, template code, assets, manifest and `bonko.json` are preserved. Repeating the command without changes is a no-op. Symlink targets are rejected. Use `--json` for updated paths, CLI version and backup location. A workshop containing multiple projects must be updated one project at a time.
 
 ## Develop and verify the CLI
 

@@ -42,6 +42,8 @@ The CLI package version, manifest protocol number, SDK npm release and manifest 
 
 `src/upgrade.ts` resolves the latest stable GitHub release and checks the active installation and permissions. It invokes the distributed `scripts/upgrade-install.mjs` adapter, which reuses `scripts/install.mjs` with explicit existing prefix/bin paths and the fixed official release URL. The CLI forwards cancellation to the installer. Upgrades retain previous versions and never rewrite project pins. No remote installer script is evaluated.
 
+`src/skills.ts` refreshes the finite set of distributed project guidance from the active CLI. It uses project discovery, rejects non-regular destinations, serializes updates with a project lock, backs up changed originals before replacement, and leaves template files and unrelated skills intact. It performs no network requests.
+
 ## Build and preview
 
 The builder scans permitted files, enforces file/byte limits, rejects symlinks and unapproved imports, checks types and compiles with fixed options. It does not load author Vite configuration or environment files. A template package includes only declared assets, compiled runtime, reviewable source and attribution.

@@ -5,6 +5,7 @@ import { packageMetadata } from './engine/package-metadata.js';
 import { createProject, findProject, packageInfo, safeDirectory, toolRoot } from './project.js';
 
 const descriptions: Record<string, string> = {
+  skills: 'bonko skills update [--json]  Refresh bundled project guidance with backups',
   upgrade: 'bonko upgrade                Install and select the latest stable CLI release',
   use: 'bonko use <version>          Select an already-installed CLI version',
   new: 'bonko new <name>             Create an independent template project',
@@ -47,7 +48,10 @@ export function parseArgs(args: string[]) {
         noDownload: false,
         port,
       };
-    if (arg === '--json' && ['new', 'build', 'check', 'pack', 'version'].includes(command))
+    if (
+      arg === '--json' &&
+      ['new', 'build', 'check', 'pack', 'version', 'skills'].includes(command)
+    )
       json = true;
     else if (arg === '--no-open' && command === 'dev') noOpen = true;
     else if (arg === '--no-download' && ['check', 'pack'].includes(command)) noDownload = true;
@@ -60,7 +64,7 @@ export function parseArgs(args: string[]) {
       throw new Error(`Unsupported option ${arg} for ${command}. Run bonko help ${command}.`);
     else operands.push(arg);
   }
-  const max = ['new', 'help', 'browser', 'use'].includes(command) ? 1 : 0;
+  const max = ['new', 'help', 'browser', 'use', 'skills'].includes(command) ? 1 : 0;
   if (operands.length > max)
     throw new Error(`Unexpected argument. Usage: ${descriptions[command]}`);
   if (['new', 'use'].includes(command) && !operands[0])
@@ -112,6 +116,19 @@ export async function main(args: string[]) {
     const { useInstalledVersion } = await import('./versions.js');
     const result = await useInstalledVersion(operands[0], toolRoot, process.argv[1]);
     console.log(`Selected Bonko ${result.version}\nCommand: ${result.command}`);
+    return;
+  }
+  if (command === 'skills') {
+    if (operands[0] !== 'update') throw new Error('Usage: bonko skills update [--json]');
+    const { updateSkills } = await import('./skills.js');
+    const result = await updateSkills();
+    output(
+      result,
+      result.updated.length
+        ? `Updated guidance from Bonko ${result.version}:\n${result.updated.join('\n')}\nBackup: ${result.backupDirectory}`
+        : `Project guidance already matches Bonko ${result.version}.`,
+      json,
+    );
     return;
   }
   if (command === 'new') {
