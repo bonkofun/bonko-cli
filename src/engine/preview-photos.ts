@@ -8,7 +8,14 @@ export function validatePreviewPhotos(
   const captionKeys = Object.keys(manifest.config).filter((key) =>
     key.startsWith('previewCaption'),
   );
+  const max = manifest.config.maxPhotos ?? 1;
+  if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > 10)
+    throw new Error('Preview photos require maxPhotos between 1 and 10');
   if (!keys.length && !captionKeys.length) return;
+  // Capacity limits user uploads; authored demos are an independent retained set.
+  if (!keys.length || keys.length > 10 || keys.some((key) => !/^previewPhoto([1-9]|10)$/.test(key)))
+    throw new Error('Preview photos must be consecutively numbered from 1 through the demo count');
+
   for (const [field, limit] of [
     ['recipientName', 30],
     ['message', 160],
@@ -20,11 +27,8 @@ export function validatePreviewPhotos(
         `sample.${field} must contain 1–${limit} characters for demonstration previews`,
       );
   }
-  const max = manifest.config.maxPhotos ?? 1;
-  if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > 10)
-    throw new Error('Preview photos require maxPhotos between 1 and 10');
   const paths = new Set<string>();
-  for (let index = 1; index <= Number(max); index++) {
+  for (let index = 1; index <= keys.length; index++) {
     const id = manifest.config[`previewPhoto${index}`];
     const asset =
       typeof id === 'string' && Object.hasOwn(manifest.assets, id)
@@ -40,12 +44,10 @@ export function validatePreviewPhotos(
     paths.add(asset.path);
   }
   if (
-    captionKeys.length !== Number(max) ||
+    captionKeys.length !== keys.length ||
     captionKeys.some((key) => !/^previewCaption([1-9]|10)$/.test(key))
   )
     throw new Error('Preview captions must match the photo slots');
-  if (keys.length !== Number(max) || keys.some((key) => !/^previewPhoto([1-9]|10)$/.test(key)))
-    throw new Error('Preview photos must be consecutively numbered from 1 through maxPhotos');
 }
 
 /** Demo metadata belongs to the host; reserve runtime config space for real photo notes. */

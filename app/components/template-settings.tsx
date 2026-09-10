@@ -139,7 +139,8 @@ export function TemplateSettings({ slug, photoCount }: { slug: string; photoCoun
                     onChange={(e) => setDraft({ ...draft, maxPhotos: e.target.valueAsNumber })}
                   />
                   <FieldDescription>
-                    1–10 photos. Authored demo assets must match this count.
+                    Upload limit: 1–10 photos. Existing demo photos are kept; preview uses up to
+                    this limit.
                   </FieldDescription>
                 </Field>
                 <Field>

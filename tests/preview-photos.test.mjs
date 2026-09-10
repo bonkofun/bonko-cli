@@ -99,3 +99,34 @@ test('demonstration previews require sample recipient, message and sender', () =
     );
   }
 });
+
+test('upload capacity is independent of the retained demo sequence and still validates unused assets', () => {
+  const config = {
+    previewPhoto1: 'demo',
+    previewCaption1: 'First memory',
+    previewPhoto2: 'second',
+    previewCaption2: 'Second memory',
+  };
+  for (const maxPhotos of [1, 3, 7, 10]) {
+    validatePreviewPhotos({ assets, sample, cover: 'cover', config: { ...config, maxPhotos } });
+  }
+  for (const patch of [
+    { previewPhoto2: 'missing' },
+    { previewPhoto2: 'audio' },
+    { previewPhoto2: 'demo' },
+    { previewCaption2: '' },
+    { previewPhoto3: 'second' },
+    { previewCaption3: 'Orphan' },
+  ])
+    assert.throws(() =>
+      validatePreviewPhotos({
+        assets,
+        sample,
+        cover: 'cover',
+        config: { ...config, maxPhotos: 1, ...patch },
+      }),
+    );
+  assert.throws(() =>
+    validatePreviewPhotos({ assets, sample, cover: 'cover', config: { maxPhotos: 0 } }),
+  );
+});

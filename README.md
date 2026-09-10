@@ -64,7 +64,7 @@ Studio uses a viewport-fitted workbench with Personal, Photo, Config, and Test t
 
 The **Config** tab reads and saves `manifest.json`: template name, description, author name, tags, photo count (1–10), Free/Premium access, and a suggested USD price. Saving preserves other manifest fields and uses revision checks to reject stale edits. **Reload from file** discards unsaved form changes and loads external edits. `tsconfig.json` remains compiler configuration and is not modified.
 
-Suggested pricing is stored as `config.suggestedPriceCents` (integer cents) and `config.suggestedPriceCurrency` (`USD`). It is authoring metadata for platform review, not an active payment price, and is omitted from runtime initialization. Existing authored `previewPhotoN` / `previewCaptionN` entries must match a changed photo count; save errors identify missing or mismatched entries rather than deleting existing demo metadata.
+Suggested pricing is stored as `config.suggestedPriceCents` (integer cents) and `config.suggestedPriceCurrency` (`USD`). It is authoring metadata for platform review, not an active payment price, and is omitted from runtime initialization. The upload limit is independent of the authored demo count. Changing it preserves all `previewPhotoN` / `previewCaptionN` entries and assets. Preview uses up to the new limit from the existing demo set; increasing the limit does not require generating more demo photos. Each declared demo must still reference a valid image and have a matching caption.
 
 ## Upgrade
 

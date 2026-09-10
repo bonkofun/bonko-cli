@@ -542,13 +542,38 @@ test(
     let server, browser;
     try {
       const project = await createProject('settings-ui', parent);
+      const manifestFile = path.join(project.root, 'manifest.json');
+      const original = JSON.parse(await readFile(manifestFile, 'utf8'));
+      const demoBytes = await readFile(
+        path.join(project.root, original.assets[original.cover].path),
+      );
+      original.config.maxPhotos = 5;
+      for (let index = 1; index <= 5; index++) {
+        const id = `demo-${index}`;
+        original.assets[id] = { kind: 'image', path: `assets/${id}.webp` };
+        original.config[`previewPhoto${index}`] = id;
+        original.config[`previewCaption${index}`] = `Memory ${index}`;
+        await writeFile(path.join(project.root, `assets/${id}.webp`), demoBytes);
+      }
+      await writeFile(manifestFile, JSON.stringify(original));
+
       server = await standaloneServerFor(project.root, project.slug, toolRoot, 0);
       browser = await chromium.launch();
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+      let demoCount = 0;
+      await page.exposeFunction('__reportDemoCount', (count) => {
+        demoCount = count;
+      });
+      await page.addInitScript(() => {
+        window.addEventListener('message', (event) => {
+          if (event.data?.type === 'init')
+            void window.__reportDemoCount(event.data.config?.bonkoPhotoCount);
+        });
+      });
       await page.goto(server.origin);
       await page.getByRole('tab', { name: 'Template configuration' }).click();
       await page.getByLabel('Template name', { exact: true }).fill('Our Golden Hour');
-      await page.getByLabel('Photo count', { exact: true }).fill('3');
+      await page.getByLabel('Photo count', { exact: true }).fill('7');
       await page.getByLabel('Description', { exact: true }).fill('Three moments to keep.');
       await page.getByLabel('Tags', { exact: true }).fill('Love, Memories');
       await page.getByLabel('Author name', { exact: true }).fill('Jamie');
@@ -563,7 +588,26 @@ test(
       await page.getByRole('button', { name: 'Save configuration' }).click();
       await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
       const saved = JSON.parse(await readFile(path.join(project.root, 'manifest.json'), 'utf8'));
-      assert.equal(saved.config.maxPhotos, 3);
+      assert.equal(saved.config.maxPhotos, 7);
+      assert.deepEqual(saved.assets, original.assets);
+      await expect.poll(() => demoCount).toBe(5);
+      await page.getByLabel('Photo count', { exact: true }).fill('3');
+      await page.getByRole('button', { name: 'Save configuration' }).click();
+      await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
+      await expect.poll(() => demoCount).toBe(3);
+      const reduced = JSON.parse(await readFile(manifestFile, 'utf8'));
+      assert.equal(reduced.config.maxPhotos, 3);
+      assert.deepEqual(reduced.assets, original.assets);
+      for (let index = 1; index <= 5; index++) {
+        assert.equal(
+          reduced.config[`previewPhoto${index}`],
+          original.config[`previewPhoto${index}`],
+        );
+        assert.equal(
+          reduced.config[`previewCaption${index}`],
+          original.config[`previewCaption${index}`],
+        );
+      }
       assert.equal(saved.config.suggestedPriceCents, 499);
       assert.equal(saved.author, 'Jamie');
       await page.reload();
