@@ -52,7 +52,11 @@ export function validatePreviewPhotos(
 export function withoutPreviewMetadata(config: TemplateSubmission['config']) {
   return Object.fromEntries(
     Object.entries(config).filter(
-      ([key]) => !key.startsWith('previewPhoto') && !key.startsWith('previewCaption'),
+      ([key]) =>
+        !key.startsWith('previewPhoto') &&
+        !key.startsWith('previewCaption') &&
+        key !== 'suggestedPriceCents' &&
+        key !== 'suggestedPriceCurrency',
     ),
   );
 }

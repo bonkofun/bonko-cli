@@ -432,6 +432,7 @@ test(
             count: data.config?.bonkoPhotoCount,
             transform: data.config?.bonkoPhotoTransform2,
             bytes: data.assets?.['bonko-photo-2']?.bytes?.byteLength,
+            notes: data.config?.bonkoPhotoNotes1,
           });
         });
       });
@@ -444,6 +445,13 @@ test(
           ['first.png', 'second.png'].map((name) => ({ name, mimeType: 'image/png', buffer })),
         );
       await expect(page.getByText('2 / 3 photos', { exact: true })).toBeVisible();
+      await page.getByLabel('Photo 1 description', { exact: true }).fill('First memory');
+      await page.getByLabel('Photo 2 description', { exact: true }).fill('Second memory');
+      await page.getByRole('button', { name: 'Move photo 2 up' }).click();
+      await expect(page.getByLabel('Photo 1 description', { exact: true })).toHaveValue(
+        'Second memory',
+      );
+      await page.getByRole('button', { name: 'Move photo 1 down' }).click();
       await page.getByRole('button', { name: '2. second.png' }).click();
       await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
       await expect(
@@ -457,6 +465,7 @@ test(
           count: 2,
           transform: 'translate(0px, 0px) scale(1.05)',
           bytes: buffer.length,
+          notes: 'First memory'.padEnd(80) + 'Second memory'.padEnd(80),
         });
       await page
         .locator('#photo')
@@ -521,6 +530,60 @@ test(
       await browser?.close();
       await server?.close();
       await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'Studio settings save, survive tab switches and reload into the photo limit',
+  { timeout: 45000 },
+  async () => {
+    const parent = await mkdtemp(path.join(tmpdir(), 'bonko-studio-settings-'));
+    let server, browser;
+    try {
+      const project = await createProject('settings-ui', parent);
+      server = await standaloneServerFor(project.root, project.slug, toolRoot, 0);
+      browser = await chromium.launch();
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+      await page.goto(server.origin);
+      await page.getByRole('tab', { name: 'Template configuration' }).click();
+      await page.getByLabel('Template name', { exact: true }).fill('Our Golden Hour');
+      await page.getByLabel('Photo count', { exact: true }).fill('3');
+      await page.getByLabel('Description', { exact: true }).fill('Three moments to keep.');
+      await page.getByLabel('Tags', { exact: true }).fill('Love, Memories');
+      await page.getByLabel('Author name', { exact: true }).fill('Jamie');
+      await page.getByRole('combobox', { name: 'Access', exact: true }).click();
+      await page.getByRole('option', { name: 'Premium', exact: true }).click();
+      await page.getByLabel('Suggested price (USD)', { exact: true }).fill('4.99');
+      await page.getByRole('tab', { name: 'Photo & framing' }).click();
+      await page.getByRole('tab', { name: 'Template configuration' }).click();
+      await expect(page.getByLabel('Template name', { exact: true })).toHaveValue(
+        'Our Golden Hour',
+      );
+      await page.getByRole('button', { name: 'Save configuration' }).click();
+      await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
+      const saved = JSON.parse(await readFile(path.join(project.root, 'manifest.json'), 'utf8'));
+      assert.equal(saved.config.maxPhotos, 3);
+      assert.equal(saved.config.suggestedPriceCents, 499);
+      assert.equal(saved.author, 'Jamie');
+      await page.reload();
+      await page.getByRole('tab', { name: 'Photo & framing' }).click();
+      await expect(page.getByText('0 / 3 photos', { exact: true })).toBeVisible();
+      await page.getByRole('tab', { name: 'Template configuration' }).click();
+      await expect(page.getByLabel('Template name', { exact: true })).toHaveValue(
+        'Our Golden Hour',
+      );
+      for (const width of [375, 390, 430, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
+      }
+    } finally {
+      await browser?.close();
+      await server?.close();
+      await rm(parent, { recursive: true, force: true });
     }
   },
 );

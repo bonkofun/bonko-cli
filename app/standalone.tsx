@@ -1,3 +1,4 @@
+import { TemplateSettings } from '@/components/template-settings';
 import { withoutPreviewMetadata } from '../src/engine/preview-photos.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -7,6 +8,9 @@ import type { TemplateSubmission } from '@bonko/template-sdk/submission';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { token } from 'virtual:standalone';
 import {
+  IconArrowUp,
+  IconArrowDown,
+  IconTrash,
   IconMaximize,
   IconMinimize,
   IconSun,
@@ -260,7 +264,7 @@ function PhotoThumbnail({ file }: { file: File }) {
     setUrl(next);
     return () => URL.revokeObjectURL(next);
   }, [file]);
-  return url ? <img src={url} alt="" className="size-10 rounded object-cover" /> : null;
+  return url ? <img src={url} alt="" className="size-14 rounded object-cover" /> : null;
 }
 
 function Workspace({
@@ -304,6 +308,7 @@ function Workspace({
       ...draft,
       photoTransform: `translate(${crop.x}px, ${crop.y}px) scale(${crop.scale})`,
     });
+    setAppliedNotes(notes);
     setEditing(false);
     setReplayCount((value) => value + 1);
   }
@@ -311,6 +316,21 @@ function Workspace({
   const [photos, setPhotos] = useState<File[]>([]);
   const [selected, setSelected] = useState(0);
   const photo = photos[selected];
+  const [notes, setNotes] = useState<Map<File, string>>(() => new Map());
+  const [appliedNotes, setAppliedNotes] = useState(notes);
+  useEffect(() => {
+    const timeout = setTimeout(() => setAppliedNotes(notes), 100);
+    return () => clearTimeout(timeout);
+  }, [notes]);
+  function movePhoto(from: number, to: number) {
+    if (to < 0 || to >= photos.length || from === to) return;
+    const reordered = [...photos];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setPhotos(reordered);
+    setSelected(reordered.indexOf(photo));
+    setEditing(true);
+  }
   const [crops, setCrops] = useState<Map<File, typeof crop>>(() => new Map());
   function selectPhoto(index: number) {
     setSelected(index);
@@ -398,7 +418,7 @@ function Workspace({
     replayCount,
     applied,
     photoUrl,
-    photos.map((file) => [file.name, file.lastModified, file.size]),
+    photos.map((file) => [file.name, file.lastModified, file.size, appliedNotes.get(file) ?? '']),
     mode,
     editing,
   ]);
@@ -413,10 +433,16 @@ function Workspace({
             <TabsTrigger value="photo" aria-label="Photo & framing">
               Photo
             </TabsTrigger>
+            <TabsTrigger value="config" aria-label="Template configuration">
+              Config
+            </TabsTrigger>
             <TabsTrigger value="test" aria-label="Test the experience">
               Test
             </TabsTrigger>
           </TabsList>
+          <TabsContent value="config" forceMount className="data-[state=inactive]:hidden">
+            <TemplateSettings slug={preview.submission.slug} photoCount={photos.length} />
+          </TabsContent>
           <TabsContent value="personal">
             <Card>
               <CardHeader>
@@ -535,7 +561,6 @@ function Workspace({
                     {photos.map((file, index) => (
                       <div
                         key={`${file.name}-${file.lastModified}-${index}`}
-                        draggable
                         onDragStart={() => {
                           dragIndex.current = index;
                         }}
@@ -544,43 +569,89 @@ function Workspace({
                           event.preventDefault();
                           const from = dragIndex.current;
                           if (from === null) return;
-                          const reordered = [...photos];
-                          const [moved] = reordered.splice(from, 1);
-                          reordered.splice(index, 0, moved);
-                          setPhotos(reordered);
-                          setSelected(reordered.indexOf(photo));
-                          setEditing(true);
+                          movePhoto(from, index);
                           dragIndex.current = null;
                         }}
-                        className="flex gap-2"
+                        className="photo-editor-row"
                       >
                         <Button
                           variant={selected === index ? 'secondary' : 'outline'}
                           className="h-auto min-h-14 min-w-0 flex-1 justify-start"
                           aria-pressed={selected === index}
+                          draggable
+                          aria-label={`${index + 1}. ${file.name}`}
+                          title={file.name}
                           onClick={() => {
                             selectPhoto(index);
                           }}
                         >
                           <PhotoThumbnail file={file} />
-                          <span className="truncate">
-                            {index + 1}. {file.name}
-                          </span>
+                          <span className="truncate">Photo {index + 1}</span>
                         </Button>
-                        <Button
-                          variant="ghost"
-                          aria-label={`Remove photo ${index + 1}`}
-                          onClick={() => {
-                            const remaining = photos.filter((_, i) => i !== index);
-                            setPhotos(remaining);
-                            setSelected(0);
-                            setCrop(crops.get(remaining[0]) ?? { scale: 1, x: 0, y: 0 });
-                            setPhotoError('');
-                            setEditing(true);
-                          }}
-                        >
-                          Remove
-                        </Button>
+                        <Field className="min-w-0 gap-1">
+                          <FieldLabel htmlFor={`photo-note-${index}`}>
+                            Photo {index + 1} description
+                          </FieldLabel>
+                          <Textarea
+                            id={`photo-note-${index}`}
+                            rows={2}
+                            maxLength={80}
+                            placeholder="The story behind this photo…"
+                            value={notes.get(file) ?? ''}
+                            onChange={(event) => {
+                              setNotes((previous) =>
+                                new Map(previous).set(file, event.target.value),
+                              );
+                              setEditing(true);
+                            }}
+                          />
+                          <FieldDescription>{(notes.get(file) ?? '').length} / 80</FieldDescription>
+                        </Field>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={index === 0}
+                            aria-label={`Move photo ${index + 1} up`}
+                            onClick={() => movePhoto(index, index - 1)}
+                          >
+                            <IconArrowUp aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={index === photos.length - 1}
+                            aria-label={`Move photo ${index + 1} down`}
+                            onClick={() => movePhoto(index, index + 1)}
+                          >
+                            <IconArrowDown aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove photo ${index + 1}`}
+                            onClick={() => {
+                              const remaining = photos.filter((_, i) => i !== index);
+                              setPhotos(remaining);
+                              setNotes((previous) => {
+                                const next = new Map(previous);
+                                next.delete(file);
+                                return next;
+                              });
+                              setCrops((previous) => {
+                                const next = new Map(previous);
+                                next.delete(file);
+                                return next;
+                              });
+                              setSelected(0);
+                              setCrop(crops.get(remaining[0]) ?? { scale: 1, x: 0, y: 0 });
+                              setPhotoError('');
+                              setEditing(true);
+                            }}
+                          >
+                            <IconTrash aria-hidden="true" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -765,6 +836,18 @@ function Workspace({
                   },
                   signal,
                 );
+                if (photos.length) {
+                  data.config.bonkoPhotoCount = editing ? 1 : photos.length;
+                  const captions = editing
+                    ? [appliedNotes.get(photo) ?? '']
+                    : photos.map((file) => appliedNotes.get(file) ?? '');
+                  for (let offset = 0; offset < captions.length; offset += 5) {
+                    data.config[`bonkoPhotoNotes${offset / 5 + 1}`] = captions
+                      .slice(offset, offset + 5)
+                      .map((caption) => caption.slice(0, 80).padEnd(80))
+                      .join('');
+                  }
+                }
                 if (!editing && photos.length) {
                   data.content.photo = {
                     bytes: await photos[0].arrayBuffer(),

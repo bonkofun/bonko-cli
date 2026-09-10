@@ -219,3 +219,9 @@ A finished demonstration also requires meaningful `sample.recipientName` (1–30
 ```
 
 CLI preview initializes from sample content. The creation host uses sample name/message/sender only as preview defaults for missing input during the demo; they never satisfy required user inputs or enter a saved link. An omitted user sender remains omitted after the user supplies their own photo.
+
+### Studio authoring metadata
+
+Studio's Config tab edits `manifest.json`, not TypeScript compiler configuration. It stores a suggested price in `config.suggestedPriceCents` (integer USD cents, 0–999999) and `config.suggestedPriceCurrency` (`USD`). Free access requires zero; Premium requires at least one cent. These values are author suggestions for platform review, not payment activation, and Studio removes them before runtime initialization. No new top-level manifest fields are introduced.
+
+Local uploaded photos have optional 0–80-character descriptions. Studio retains descriptions and crop transforms with each photo during reorder and removal; replay serializes descriptions in the existing `bonkoPhotoNotesN` format. They replace authored demo captions for local preview and are never written into the template package.

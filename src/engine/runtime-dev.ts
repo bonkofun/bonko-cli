@@ -1,3 +1,4 @@
+import { readStudioConfig, saveStudioConfig, StudioConfigError } from './studio-config.js';
 import type { AddressInfo } from 'node:net';
 import type { ServerResponse } from 'node:http';
 import type { FSWatcher } from 'node:fs';
@@ -102,8 +103,54 @@ export async function standaloneServerFor(
         (req.headers.origin && req.headers.origin !== origin)
       )
         return send(403, 'Forbidden');
-      if (req.method !== 'GET') return send(405, 'Method not allowed');
       const url = new URL(req.url ?? '/', origin);
+      if (url.pathname === '/__bonko/settings') {
+        if (req.headers['x-bonko-preview'] !== token) return send(403, '{}', 'application/json');
+        const project = projectList.find(
+          (item) => item.slug === (url.searchParams.get('slug') ?? projectList[0]?.slug),
+        );
+        if (!project) return send(404, '{}', 'application/json');
+        try {
+          if (req.method === 'GET')
+            return send(
+              200,
+              JSON.stringify(await readStudioConfig(project.root)),
+              'application/json',
+            );
+          if (req.method !== 'PUT') return send(405, 'Method not allowed');
+          if (req.headers['content-type'] !== 'application/json') return send(415, 'JSON required');
+          const chunks: Buffer[] = [];
+          let bytes = 0;
+          for await (const chunk of req) {
+            bytes += chunk.length;
+            if (bytes > 16384) return send(413, 'Settings too large');
+            chunks.push(Buffer.from(chunk));
+          }
+          let input: unknown;
+          try {
+            input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          } catch {
+            return send(400, JSON.stringify({ error: 'Invalid JSON' }), 'application/json');
+          }
+          return send(
+            200,
+            JSON.stringify(await saveStudioConfig(project.root, input)),
+            'application/json',
+          );
+        } catch (error) {
+          return send(
+            error instanceof StudioConfigError ? error.status : 422,
+            JSON.stringify({
+              error:
+                error instanceof StudioConfigError
+                  ? error.message
+                  : 'Unable to read or save manifest.json',
+            }),
+            'application/json',
+          );
+        }
+      }
+      if (req.method !== 'GET') return send(405, 'Method not allowed');
       if (url.pathname === '/__bonko/cards') {
         if (req.headers['x-bonko-preview'] !== token) return send(403, '{}', 'application/json');
         const cards = await Promise.all(

@@ -50,6 +50,8 @@ The builder scans permitted files, enforces file/byte limits, rejects symlinks a
 
 Studio and Runtime use separate loopback servers. Host/origin checks, random preview tokens and the SDK's sandbox contract constrain access. Build failures remove the old preview; source corrections trigger a fresh preview. A small bounded snapshot cache supports already-mounted previews.
 
+`src/engine/studio-config.ts` owns Studio manifest edits. The host exposes token-protected GET/PUT settings routes restricted to discovered project roots. Writes accept a finite field set, preserve unrelated metadata, validate with the SDK and demo-photo rules, check the file revision, serialize saves with an exclusive lock, and replace the file via a same-directory temporary file. Suggested USD prices remain authoring metadata. Local photo descriptions are browser-only and travel with their photos in the runtime notes contract.
+
 Browser verification checks supplied text/photo/crop, keyboard interaction, static presentation, reduced motion, replay, failure modes and responsive widths. Packaging preserves checked bytes and refuses changed content under an existing template version. Passing automated checks does not replace source, licensing, audio or visual review.
 
 ## Installer lifecycle
