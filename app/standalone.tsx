@@ -1,3 +1,5 @@
+import { PhotoList } from '@/components/photo-list';
+import { TemplateSettings } from '@/components/template-settings';
 import { withoutPreviewMetadata } from '../src/engine/preview-photos.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -253,16 +255,6 @@ function Studio() {
     </main>
   );
 }
-function PhotoThumbnail({ file }: { file: File }) {
-  const [url, setUrl] = useState('');
-  useEffect(() => {
-    const next = URL.createObjectURL(file);
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [file]);
-  return url ? <img src={url} alt="" className="size-10 rounded object-cover" /> : null;
-}
-
 function Workspace({
   preview,
   revision,
@@ -304,6 +296,7 @@ function Workspace({
       ...draft,
       photoTransform: `translate(${crop.x}px, ${crop.y}px) scale(${crop.scale})`,
     });
+    setAppliedNotes(notes);
     setEditing(false);
     setReplayCount((value) => value + 1);
   }
@@ -311,6 +304,12 @@ function Workspace({
   const [photos, setPhotos] = useState<File[]>([]);
   const [selected, setSelected] = useState(0);
   const photo = photos[selected];
+  const [notes, setNotes] = useState<Map<File, string>>(() => new Map());
+  const [appliedNotes, setAppliedNotes] = useState(notes);
+  useEffect(() => {
+    const timeout = setTimeout(() => setAppliedNotes(notes), 100);
+    return () => clearTimeout(timeout);
+  }, [notes]);
   const [crops, setCrops] = useState<Map<File, typeof crop>>(() => new Map());
   function selectPhoto(index: number) {
     setSelected(index);
@@ -318,7 +317,6 @@ function Workspace({
     setEditing(true);
   }
   const maxPhotos = Math.max(1, Math.min(10, Number(preview.submission.config.maxPhotos) || 1));
-  const dragIndex = useRef<number | null>(null);
   const [photoUrl, setPhotoUrl] = useState('');
   const demoPhotoIds = Array.from(
     { length: maxPhotos },
@@ -398,7 +396,7 @@ function Workspace({
     replayCount,
     applied,
     photoUrl,
-    photos.map((file) => [file.name, file.lastModified, file.size]),
+    photos.map((file) => [file.name, file.lastModified, file.size, appliedNotes.get(file) ?? '']),
     mode,
     editing,
   ]);
@@ -413,10 +411,16 @@ function Workspace({
             <TabsTrigger value="photo" aria-label="Photo & framing">
               Photo
             </TabsTrigger>
+            <TabsTrigger value="config" aria-label="Template configuration">
+              Config
+            </TabsTrigger>
             <TabsTrigger value="test" aria-label="Test the experience">
               Test
             </TabsTrigger>
           </TabsList>
+          <TabsContent value="config" forceMount className="data-[state=inactive]:hidden">
+            <TemplateSettings slug={preview.submission.slug} photoCount={photos.length} />
+          </TabsContent>
           <TabsContent value="personal">
             <Card>
               <CardHeader>
@@ -473,7 +477,7 @@ function Workspace({
               <CardHeader>
                 <CardTitle>Photo & framing</CardTitle>
                 <CardDescription>
-                  Add photos, drag to reorder, and select one to preview its framing.
+                  Drag the handle to reorder. Select a photo to adjust its framing.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -531,59 +535,44 @@ function Workspace({
                       Stays in this browser. Never added to your package.
                     </FieldDescription>
                   </Field>
-                  <div className="flex flex-col gap-2">
-                    {photos.map((file, index) => (
-                      <div
-                        key={`${file.name}-${file.lastModified}-${index}`}
-                        draggable
-                        onDragStart={() => {
-                          dragIndex.current = index;
-                        }}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          const from = dragIndex.current;
-                          if (from === null) return;
-                          const reordered = [...photos];
-                          const [moved] = reordered.splice(from, 1);
-                          reordered.splice(index, 0, moved);
-                          setPhotos(reordered);
-                          setSelected(reordered.indexOf(photo));
-                          setEditing(true);
-                          dragIndex.current = null;
-                        }}
-                        className="flex gap-2"
-                      >
-                        <Button
-                          variant={selected === index ? 'secondary' : 'outline'}
-                          className="h-auto min-h-14 min-w-0 flex-1 justify-start"
-                          aria-pressed={selected === index}
-                          onClick={() => {
-                            selectPhoto(index);
-                          }}
-                        >
-                          <PhotoThumbnail file={file} />
-                          <span className="truncate">
-                            {index + 1}. {file.name}
-                          </span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          aria-label={`Remove photo ${index + 1}`}
-                          onClick={() => {
-                            const remaining = photos.filter((_, i) => i !== index);
-                            setPhotos(remaining);
-                            setSelected(0);
-                            setCrop(crops.get(remaining[0]) ?? { scale: 1, x: 0, y: 0 });
-                            setPhotoError('');
-                            setEditing(true);
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                  <PhotoList
+                    photos={photos}
+                    selected={photo}
+                    notes={notes}
+                    onReorder={(reordered) => {
+                      setPhotos(reordered);
+                      setSelected(reordered.indexOf(photo));
+                      setEditing(true);
+                    }}
+                    onSelect={selectPhoto}
+                    onNote={(file, note) => {
+                      setNotes((previous) => new Map(previous).set(file, note));
+                      setEditing(true);
+                    }}
+                    onRemove={(index) => {
+                      const file = photos[index];
+                      const remaining = photos.filter((_, i) => i !== index);
+                      const nextSelected =
+                        file === photo
+                          ? Math.min(index, remaining.length - 1)
+                          : remaining.indexOf(photo);
+                      setPhotos(remaining);
+                      setSelected(Math.max(0, nextSelected));
+                      setNotes((previous) => {
+                        const next = new Map(previous);
+                        next.delete(file);
+                        return next;
+                      });
+                      setCrops((previous) => {
+                        const next = new Map(previous);
+                        next.delete(file);
+                        return next;
+                      });
+                      setCrop(crops.get(remaining[nextSelected]) ?? { scale: 1, x: 0, y: 0 });
+                      setPhotoError('');
+                      setEditing(true);
+                    }}
+                  />
                   <Separator />
                   {(
                     [
@@ -614,6 +603,27 @@ function Workspace({
                       />
                     </Field>
                   ))}
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      aria-label="Reset photo framing"
+                      disabled={crop.scale === 1 && crop.x === 0 && crop.y === 0}
+                      onClick={() => {
+                        setCrop({ scale: 1, x: 0, y: 0 });
+                        if (photo)
+                          setCrops((previous) => {
+                            const next = new Map(previous);
+                            next.delete(photo);
+                            return next;
+                          });
+                        setEditing(true);
+                      }}
+                    >
+                      <IconRotateClockwise aria-hidden="true" data-icon="inline-start" />
+                      Reset
+                    </Button>
+                  </div>
                 </FieldGroup>
               </CardContent>
             </Card>
@@ -765,6 +775,18 @@ function Workspace({
                   },
                   signal,
                 );
+                if (photos.length) {
+                  data.config.bonkoPhotoCount = editing ? 1 : photos.length;
+                  const captions = editing
+                    ? [appliedNotes.get(photo) ?? '']
+                    : photos.map((file) => appliedNotes.get(file) ?? '');
+                  for (let offset = 0; offset < captions.length; offset += 5) {
+                    data.config[`bonkoPhotoNotes${offset / 5 + 1}`] = captions
+                      .slice(offset, offset + 5)
+                      .map((caption) => caption.slice(0, 80).padEnd(80))
+                      .join('');
+                  }
+                }
                 if (!editing && photos.length) {
                   data.content.photo = {
                     bytes: await photos[0].arrayBuffer(),

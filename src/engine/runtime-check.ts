@@ -1,5 +1,6 @@
 import type { Browser, Page } from '@playwright/test';
 import { errorCode, errorMessage } from '../errors.js';
+import { readCurrentPreview } from './runtime-frame.js';
 import type { RuntimePreview } from './runtime-server.js';
 import { readFile, mkdir, writeFile, lstat } from 'node:fs/promises';
 import path from 'node:path';
@@ -192,39 +193,41 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       sender: string,
       presentation: 'ready' | 'none' = 'ready',
     ) {
-      await expect(page.locator('[data-preview-layer="current"] [data-playback]')).toHaveAttribute(
-        'data-static',
-        presentation,
-      );
-      const child = frame.locator('body');
-      await expect(child).toContainText(name);
-      await expect(child).toContainText(message);
-      if (sender) await expect(child).toContainText(sender);
-      await child.evaluate(async () => {
-        await Promise.all(
-          [...document.images].map((image) => image.decode().catch(() => undefined)),
+      const result = await readCurrentPreview(async () => {
+        await expect(page.locator('[data-preview-layer="pending"]')).toHaveCount(0);
+        await expect(
+          page.locator('[data-preview-layer="current"] [data-playback]'),
+        ).toHaveAttribute('data-static', presentation);
+        const child = frame.locator('body');
+        await expect(child).toContainText(name);
+        await expect(child).toContainText(message);
+        if (sender) await expect(child).toContainText(sender);
+        await child.evaluate(async () => {
+          await Promise.all(
+            [...document.images].map((image) => image.decode().catch(() => undefined)),
+          );
+        });
+        return await child.evaluate(
+          (_body, { name, message, sender }) => {
+            const text = document.body.innerText;
+            const photo = [...document.images].find(
+              (image) =>
+                image.naturalWidth === 97 &&
+                image.naturalHeight === 83 &&
+                image.getBoundingClientRect().width > 0 &&
+                image.getBoundingClientRect().height > 0,
+            );
+            return {
+              content:
+                text.includes(name) && text.includes(message) && (!sender || text.includes(sender)),
+              photo: !!photo,
+              crop: photo ? getComputedStyle(photo).transform : '',
+              overflow: document.documentElement.scrollWidth > innerWidth,
+            };
+          },
+          { name, message, sender },
         );
       });
-      const result = await child.evaluate(
-        (_body, { name, message, sender }) => {
-          const text = document.body.innerText;
-          const photo = [...document.images].find(
-            (image) =>
-              image.naturalWidth === 97 &&
-              image.naturalHeight === 83 &&
-              image.getBoundingClientRect().width > 0 &&
-              image.getBoundingClientRect().height > 0,
-          );
-          return {
-            content:
-              text.includes(name) && text.includes(message) && (!sender || text.includes(sender)),
-            photo: !!photo,
-            crop: photo ? getComputedStyle(photo).transform : '',
-            overflow: document.documentElement.scrollWidth > innerWidth,
-          };
-        },
-        { name, message, sender },
-      );
       if (!result.content)
         throw new RuntimeBuildError(
           'MISSING_FINAL_CONTENT',

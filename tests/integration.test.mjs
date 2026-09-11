@@ -432,6 +432,8 @@ test(
             count: data.config?.bonkoPhotoCount,
             transform: data.config?.bonkoPhotoTransform2,
             bytes: data.assets?.['bonko-photo-2']?.bytes?.byteLength,
+            notes: data.config?.bonkoPhotoNotes1,
+            primaryTransform: data.content?.photoTransform,
           });
         });
       });
@@ -444,8 +446,57 @@ test(
           ['first.png', 'second.png'].map((name) => ({ name, mimeType: 'image/png', buffer })),
         );
       await expect(page.getByText('2 / 3 photos', { exact: true })).toBeVisible();
+      await page.getByLabel('Photo 1 description', { exact: true }).fill('First memory');
+      await page.getByLabel('Photo 2 description', { exact: true }).fill('Second memory');
+      await page.getByRole('button', { name: 'Drag photo 2 to reorder' }).press('ArrowUp');
+      await expect(page.getByLabel('Photo 1 description', { exact: true })).toHaveValue(
+        'Second memory',
+      );
+      const handle = page.getByRole('button', { name: 'Drag photo 1 to reorder' });
+      await handle.hover();
+      const source = await handle.boundingBox();
+      const target = await page
+        .getByRole('button', { name: 'Drag photo 2 to reorder' })
+        .boundingBox();
+      assert.ok(source && target);
+      await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2 + 15, {
+        steps: 16,
+      });
+      await page.mouse.up();
+      await expect(page.getByLabel('Photo 1 description', { exact: true })).toHaveValue(
+        'First memory',
+      );
       await page.getByRole('button', { name: '2. second.png' }).click();
       await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
+      await page.getByRole('button', { name: '1. first.png' }).click();
+      await page.getByRole('slider', { name: 'Scale', exact: true }).press('ArrowRight');
+      await page.getByRole('slider', { name: 'Horizontal crop', exact: true }).press('ArrowLeft');
+      await page.getByRole('slider', { name: 'Vertical crop', exact: true }).press('ArrowLeft');
+      await page.getByRole('button', { name: 'Reset photo framing' }).click();
+      for (const [name, value] of [
+        ['Scale', '1'],
+        ['Horizontal crop', '0'],
+        ['Vertical crop', '0'],
+      ]) {
+        await expect(page.getByRole('slider', { name, exact: true })).toHaveAttribute(
+          'aria-valuenow',
+          value,
+        );
+      }
+      await expect(page.getByRole('button', { name: 'Reset photo framing' })).toBeDisabled();
+      await page.getByRole('button', { name: '2. second.png' }).click();
+      await expect(page.getByRole('slider', { name: 'Scale', exact: true })).toHaveAttribute(
+        'aria-valuenow',
+        '1.05',
+      );
+      await page.getByRole('button', { name: '1. first.png' }).click();
+      await expect(page.getByRole('slider', { name: 'Scale', exact: true })).toHaveAttribute(
+        'aria-valuenow',
+        '1',
+      );
+
       await expect(
         page.locator('[data-preview-layer="current"] [data-static="ready"]'),
       ).toBeVisible();
@@ -457,6 +508,8 @@ test(
           count: 2,
           transform: 'translate(0px, 0px) scale(1.05)',
           bytes: buffer.length,
+          notes: 'First memory'.padEnd(80) + 'Second memory'.padEnd(80),
+          primaryTransform: 'translate(0px, 0px) scale(1)',
         });
       await page
         .locator('#photo')
@@ -521,6 +574,121 @@ test(
       await browser?.close();
       await server?.close();
       await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'Studio settings save, survive tab switches and reload into the photo limit',
+  { timeout: 45000 },
+  async () => {
+    const parent = await mkdtemp(path.join(tmpdir(), 'bonko-studio-settings-'));
+    let server, browser;
+    try {
+      const project = await createProject('settings-ui', parent);
+      const manifestFile = path.join(project.root, 'manifest.json');
+      const original = JSON.parse(await readFile(manifestFile, 'utf8'));
+      const demoBytes = await readFile(
+        path.join(project.root, original.assets[original.cover].path),
+      );
+      original.config.maxPhotos = 5;
+      for (let index = 1; index <= 5; index++) {
+        const id = `demo-${index}`;
+        original.assets[id] = { kind: 'image', path: `assets/${id}.webp` };
+        original.config[`previewPhoto${index}`] = id;
+        original.config[`previewCaption${index}`] = `Memory ${index}`;
+        await writeFile(path.join(project.root, `assets/${id}.webp`), demoBytes);
+      }
+      await writeFile(manifestFile, JSON.stringify(original));
+
+      server = await standaloneServerFor(project.root, project.slug, toolRoot, 0);
+      browser = await chromium.launch();
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+      let demoCount = 0;
+      await page.exposeFunction('__reportDemoCount', (count) => {
+        demoCount = count;
+      });
+      await page.addInitScript(() => {
+        window.addEventListener('message', (event) => {
+          if (event.data?.type === 'init')
+            void window.__reportDemoCount(event.data.config?.bonkoPhotoCount);
+        });
+      });
+      await page.goto(server.origin);
+      await page.getByRole('tab', { name: 'Template configuration' }).click();
+      await page.getByLabel('Template name', { exact: true }).fill('Our Golden Hour');
+      await page.getByLabel('Photo count', { exact: true }).fill('7');
+      await page.getByLabel('Description', { exact: true }).fill('Three moments to keep.');
+      await page.getByLabel('Tags', { exact: true }).fill('Love, Memories');
+      await page.getByLabel('Author name', { exact: true }).fill('Jamie');
+      await expect(page.getByRole('combobox', { name: 'Access', exact: true })).toHaveCount(0);
+      await page.getByLabel('Price (USD)', { exact: true }).fill('4.99');
+      await page.getByRole('tab', { name: 'Photo & framing' }).click();
+      await page.getByRole('tab', { name: 'Template configuration' }).click();
+      await expect(page.getByLabel('Template name', { exact: true })).toHaveValue(
+        'Our Golden Hour',
+      );
+      await page.getByRole('button', { name: 'Save configuration' }).click();
+      await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
+      const saved = JSON.parse(await readFile(path.join(project.root, 'manifest.json'), 'utf8'));
+      assert.equal(saved.config.maxPhotos, 7);
+      assert.deepEqual(saved.assets, original.assets);
+      await expect.poll(() => demoCount).toBe(5);
+      await page.getByLabel('Photo count', { exact: true }).fill('3');
+      await page.getByRole('button', { name: 'Save configuration' }).click();
+      await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
+      await expect.poll(() => demoCount).toBe(3);
+      const reduced = JSON.parse(await readFile(manifestFile, 'utf8'));
+      assert.equal(reduced.config.maxPhotos, 3);
+      assert.deepEqual(reduced.assets, original.assets);
+      for (let index = 1; index <= 5; index++) {
+        assert.equal(
+          reduced.config[`previewPhoto${index}`],
+          original.config[`previewPhoto${index}`],
+        );
+        assert.equal(
+          reduced.config[`previewCaption${index}`],
+          original.config[`previewCaption${index}`],
+        );
+      }
+      assert.equal(saved.config.suggestedPriceCents, 499);
+      assert.equal(saved.access, 'premium');
+      assert.equal(saved.author, 'Jamie');
+      await page.reload();
+      await page.getByRole('tab', { name: 'Photo & framing' }).click();
+      await expect(page.getByText('0 / 3 photos', { exact: true })).toBeVisible();
+      await page.getByRole('tab', { name: 'Template configuration' }).click();
+      await expect(page.getByLabel('Template name', { exact: true })).toHaveValue(
+        'Our Golden Hour',
+      );
+      await page.getByLabel('Price (USD)', { exact: true }).fill('0');
+      await page.getByRole('button', { name: 'Save configuration' }).click();
+      await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
+      assert.equal(JSON.parse(await readFile(manifestFile, 'utf8')).access, 'free');
+      await page.getByLabel('Price (USD)', { exact: true }).fill('9.91');
+      assert.equal(
+        await page
+          .getByLabel('Price (USD)', { exact: true })
+          .evaluate((input) => input.validity.rangeOverflow),
+        true,
+      );
+      await page.getByLabel('Price (USD)', { exact: true }).fill('9.90');
+      await page.getByRole('button', { name: 'Save configuration' }).click();
+      await expect(page.getByText('Saved to manifest.json', { exact: true })).toBeVisible();
+      const priced = JSON.parse(await readFile(manifestFile, 'utf8'));
+      assert.equal(priced.access, 'premium');
+      assert.equal(priced.config.suggestedPriceCents, 990);
+      for (const width of [375, 390, 430, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
+      }
+    } finally {
+      await browser?.close();
+      await server?.close();
+      await rm(parent, { recursive: true, force: true });
     }
   },
 );
