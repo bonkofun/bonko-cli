@@ -13,6 +13,7 @@ test('skills update refreshes old projects from a subdirectory, backs up edits a
   const parent = await mkdtemp(path.join(tmpdir(), 'bonko-skills-update-'));
   try {
     const project = await createProject('old-note', parent);
+    await rm(path.join(project.root, 'TEMPLATE_VERSIONING.md'));
     const marker = await readFile(path.join(project.root, 'bonko.json'));
     const source = await readFile(path.join(project.root, 'src/main.tsx'));
     await writeFile(path.join(project.root, author), 'Custom old author instructions');
@@ -27,7 +28,11 @@ test('skills update refreshes old projects from a subdirectory, backs up edits a
     );
     assert.equal(cli.status, 0, cli.stderr);
     const result = JSON.parse(cli.stdout);
-    assert.equal(result.updated.length, 3);
+    assert.equal(result.updated.length, 4);
+    assert.equal(
+      await readFile(path.join(project.root, 'TEMPLATE_VERSIONING.md'), 'utf8'),
+      await readFile(path.join(toolRoot, 'docs/TEMPLATE_VERSIONING.md'), 'utf8'),
+    );
     assert.equal(
       await readFile(path.join(result.backupDirectory, author), 'utf8'),
       'Custom old author instructions',

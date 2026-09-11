@@ -18,3 +18,12 @@
 - Keep all documentation in English and comments focused on invariants and lifecycle decisions.
 - The project skills live in `.agents/skills/`; apply their relevant guidance within the user's authorized scope. Next.js-only rules do not apply to the Vite Studio.
 - Update an existing PR's title and body to describe its complete current diff, including behavior and validation.
+
+## Template version compatibility
+
+Follow docs/TEMPLATE_VERSIONING.md for every output, SDK, photo/caption or
+configuration change. Stamp the actual packing CLI automatically; the creating
+CLI pin is not upload provenance. Keep main-site admission and authoring semantics
+in sync and exercise a real generated package against the consumer. Never publish
+a breaking contract change as an implicitly compatible patch, edit version
+strings to bypass validation, or treat a local commit as a release/deployment.

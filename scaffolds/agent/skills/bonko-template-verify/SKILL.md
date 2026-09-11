@@ -21,7 +21,7 @@ Complete the same demonstration story with `sample.recipientName` (1–30 charac
 
 Give every demonstration photo its own meaningful description in `config.previewCaptionN`, paired with `previewPhotoN` in the same order. Require 1–80 characters per description, keep text outside the image, and verify the correct caption follows each photo in both animated and static previews. Do not fill real user descriptions with demo text.
 
-Use DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Require one independently generated, occasion-appropriate photograph for each supported slot, with distinct declared image assets and consecutive `config.previewPhoto1` through `previewPhotoN` references matching `maxPhotos` (default one). Reject finished deliveries containing blank blocks, reused catalog covers, missing files, private user photos or undocumented provenance. Decode and inspect the photographs at their actual frame crops.
+Use DEVELOPMENT.md's **Demonstration photos for creation previews** contract. Require a coherent set of 1–10 independently generated, occasion-appropriate demo photographs, with distinct declared image assets and consecutive `config.previewPhoto1` through `previewPhotoN` references. The authored demo count is independent of `maxPhotos`; preview uses up to the upload capacity. Reject finished deliveries containing blank blocks, reused catalog covers, missing files, private user photos or undocumented provenance. Decode and inspect the photographs at their actual frame crops.
 
 After packing, verify every referenced image is present in the ZIP and covered by package integrity metadata, and that all package budgets still pass. The upload host must validate/store these files and use them only for sample preview. Confirm user photos replace demos and demo photos do not increase upload counts or satisfy creation requirements. Report platform integration as unverified if it was not exercised; local packing is not proof of deployed behavior.
 
@@ -118,3 +118,7 @@ Packaging reruns all 18 checks and generates `dist/<slug>-<version>.bonko.zip`.
   `bonko pack` will reject packaging if `dist/<slug>-<version>.bonko.zip` already exists. When delivering an updated package, bump the major version in `manifest.json` (`"1.0"` → `"2.0"` → `"3.0"`).
 - **Package Inspection**: Verify the zip file size (must be well below the 10 MB platform limit; aim for < 1.5 MB with optimized WebP and compressed MP3).
 - **Delivery Summary**: Report the final `.bonko.zip` path, asset digest, verified checks, and file size.
+
+## Delivery versions
+
+Read [TEMPLATE_VERSIONING.md](../../../TEMPLATE_VERSIONING.md). Use a new N.0 content version when packed bytes change. The packer records the actual CLI release automatically; do not hand-edit this declaration. Update skills, adapt source, check and repack older projects. Preserve released versions and never equate local verification with production compatibility.

@@ -225,3 +225,12 @@ CLI preview initializes from sample content. The creation host uses sample name/
 Studio's Config tab edits `manifest.json`, not TypeScript compiler configuration. It stores the price in `config.suggestedPriceCents` (integer USD cents, 0–990) and `config.suggestedPriceCurrency` (`USD`). Studio exposes a single $0–$9.90 price field. The server sets `access` to `free` for zero or `premium` for a positive price; it rejects a separate access setting. These values are author suggestions for platform review, not payment activation, and Studio removes them before runtime initialization. No new top-level manifest fields are introduced.
 
 Local uploaded photos have optional 0–80-character descriptions. Studio retains descriptions and crop transforms with each photo during reorder and removal; replay serializes descriptions in the existing `bonkoPhotoNotesN` format. They replace authored demo captions for local preview and are never written into the template package.
+
+## Toolchain admission
+
+See [Template version and compatibility policy](TEMPLATE_VERSIONING.md).
+Starting with CLI 0.2.4, the packer records its actual version under
+`@bonkofun/cli` in `source/dependencies.json`. New Admin uploads require a stable
+CLI >=0.2.4 and <0.3.0 plus SDK implementation 0.2.4. Runtime identifiers remain
+protocol 3 and sdkVersion 0.2.0. Existing projects must be checked and repackaged;
+updating skills alone does not certify a package.

@@ -1,3 +1,4 @@
+import { createPackageService, packageSummary } from './studio-package.js';
 import { readStudioConfig, saveStudioConfig, StudioConfigError } from './studio-config.js';
 import type { AddressInfo } from 'node:net';
 import type { ServerResponse } from 'node:http';
@@ -84,6 +85,7 @@ export async function standaloneServerFor(
   const failures = new Map<string, RuntimeBuildError>();
   let globalFailure: RuntimeBuildError | undefined;
   const streams = new Set<ServerResponse>();
+  const packages = createPackageService(toolRoot);
   const server = createServer((req, res) => {
     void (async () => {
       const send = (status: number, body: string | Buffer, type = 'text/plain') => {
@@ -104,6 +106,57 @@ export async function standaloneServerFor(
       )
         return send(403, 'Forbidden');
       const url = new URL(req.url ?? '/', origin);
+      if (url.pathname === '/__bonko/package' || url.pathname === '/__bonko/package-download') {
+        if (req.headers['x-bonko-preview'] !== token) return send(403, '{}', 'application/json');
+        const project = projectList.find((item) => item.slug === url.searchParams.get('slug'));
+        if (!project) return send(404, '{}', 'application/json');
+        try {
+          if (url.pathname.endsWith('-download')) {
+            if (req.method !== 'GET') return send(405, 'Method not allowed');
+            const archive = await packages.download(project.root, url.searchParams.get('id'));
+            res.setHeader('Content-Disposition', 'attachment; filename="' + archive.filename + '"');
+            return send(200, archive.bytes, 'application/zip');
+          }
+          if (req.method === 'GET')
+            return send(
+              200,
+              JSON.stringify({
+                summary: await packageSummary(project.root),
+                job: packages.job(project.root),
+              }),
+              'application/json',
+            );
+          if (req.method !== 'POST') return send(405, 'Method not allowed');
+          if (req.headers['content-type'] !== 'application/json') return send(415, 'JSON required');
+          const chunks: Buffer[] = [];
+          let size = 0;
+          for await (const chunk of req) {
+            size += chunk.length;
+            if (size > 16384) return send(413, 'Request too large');
+            chunks.push(Buffer.from(chunk));
+          }
+          let input: unknown;
+          try {
+            input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          } catch {
+            throw new StudioConfigError(400, 'Invalid JSON');
+          }
+          return send(
+            202,
+            JSON.stringify(await packages.start(project.root, project.slug, input)),
+            'application/json',
+          );
+        } catch (error) {
+          return send(
+            error instanceof StudioConfigError ? error.status : 422,
+            JSON.stringify({
+              error:
+                error instanceof StudioConfigError ? error.message : 'Unable to prepare package',
+            }),
+            'application/json',
+          );
+        }
+      }
       if (url.pathname === '/__bonko/settings') {
         if (req.headers['x-bonko-preview'] !== token) return send(403, '{}', 'application/json');
         const project = projectList.find(
@@ -230,6 +283,7 @@ export async function standaloneServerFor(
     watchers.length = 0;
     for (const stream of streams) stream.end();
     streams.clear();
+    await packages.close();
     await runtime?.close();
     await new Promise((resolve) => {
       server.close(resolve);

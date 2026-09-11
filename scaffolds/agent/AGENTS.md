@@ -23,3 +23,11 @@ Agents with skill discovery can load these from `.agents/skills/`. Otherwise rea
 Run `bonko dev` from this directory for preview. Run `bonko build` for compilation and `bonko check --json` for browser verification. Before delivery, run `bonko pack --json` and inspect its report and screenshots. Record checks actually performed, skipped manual review, remaining issues and the delivery path. A build alone is not verification, and a successful package is not permission to publish.
 
 Keep changes focused. Do not overwrite existing deliverables, bump versions, commit, push or publish unless the developer's request or project policy authorizes it.
+
+## Version compatibility
+
+Read TEMPLATE_VERSIONING.md before delivery. Keep template content version N.0,
+the creating CLI pin, packing CLI release and runtime SDK contract separate.
+Recheck and repack existing templates with a supported CLI. Never edit declared
+toolchain versions to bypass upload rejection. Updating skills alone is not a
+code migration or proof of main-site compatibility.
