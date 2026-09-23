@@ -15,6 +15,14 @@ Read the project's [DEVELOPMENT.md](../../../DEVELOPMENT.md), then inspect `mani
 4. **Use supported imports and SDK patterns**: Rely on supported imports listed in DEVELOPMENT.md (`react`, `react-dom/client`, `motion/react`). Reuse the generated SDK connection and lifecycle patterns. Add focused modules inside `src/` when useful (e.g. particle canvas confetti); do not install external UI component libraries or copy Studio components.
 5. **Declare actual assets & record provenance**: Declare all assets and capabilities (`audio`, `canvas`) in `manifest.json`. Resolve asset IDs exclusively through the SDK, use SDK-managed audio, and record all media sources and licenses in `LICENSE.md`.
 
+## Message ideas and tags
+
+Edit the project-root `manifest.json` when authoring the template:
+
+- Write **three distinct, occasion-specific complete messages** in `messagePresets` by default. Each must fit the 160-character message limit. The host turns each preset into a “Need an idea?” button using its first three words, so give the three messages distinguishable openings. `sample.message` is the preview example, not an additional preset. The SDK permits 1–8 presets; three is this authoring default, not a new protocol limit.
+- Set suggested discovery labels in `tags` (at most five, each at most 20 characters). The CLI Studio Config tab can edit these tags too. Tags are separate from the platform category: after upload, an administrator reviews and may change the tags in the template's Edit tab; the public catalog uses those reviewed tags.
+- Presets travel in the versioned package. Editing a local manifest does not update a published template. To change its message ideas, create a new `N.0` content version, then check, pack, upload and review it through the normal workflow.
+
 ## Single-action opening covers
 
 When a cover has one opening action, make the entire artwork area a single semantic button. The visible “Open” hint may stay small, but tapping the title, envelope, background or empty area must activate the same reveal exactly once. An inset transparent button with a positioned text label preserves the artwork and native Tab/Enter/Space behavior. Keep a visible focus ring; remove the hit target after opening. Exclude any separate controls and preserve native scrolling. Do not apply this cover rule to the final message, photo editor or multiple-action screens.
