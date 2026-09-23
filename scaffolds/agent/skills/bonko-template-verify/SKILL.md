@@ -104,6 +104,12 @@ Use `bonko dev` to inspect what headless tests cannot evaluate:
 - **Layering and photo crops**: Inspect the closed envelope/object for text or photos leaking through layers. Check non-default user photo transforms during entrance/zoom as well as in the final/static view; wrapper animation must not overwrite the image crop. Decorative loops must stop when the final card appears, even if audio is still finishing.
 - **Touch & Gesture Smoothness**: Test tap response and card unfolding fluidity.
 
+## Full-cover activation and progressive video
+
+For a single-action opening, tap outside the text hint (title, background and a cover edge), then test Tab + Enter and Space. Each fresh run must open once; repeated taps must not start overlapping media. Verify the hit target disappears after opening and does not intercept separate host controls or final-content scrolling.
+
+For `progressiveVideo` packages, verify the opening becomes usable before the complete MP4 downloads; native media requests use the authorized gateway and accept HTTP 206 ranges. Test an actual slow/buffering response, cancellation, replay, expired preview and missing/corrupt media. Music must stop during buffering and resynchronize when playback resumes. Confirm static/reduced-motion presentation does not request the movie. Report real-device audio and network checks separately from Chromium automation.
+
 ## Package and hand off
 
 When all checks pass and visual/audio review is verified:

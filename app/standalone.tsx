@@ -770,6 +770,8 @@ function Workspace({
                     photo: { url: photoUrl || defaultPhotoUrl },
                     config: withoutPreviewMetadata(preview.submission.config),
                     hasSound: preview.submission.capabilities.includes('audio'),
+                    videoGateway:
+                      preview.submission.config.progressiveVideo === true ? preview.url : undefined,
                     allowedOrigins: [location.origin, preview.runtimeOrigin],
                     assets: Object.fromEntries(
                       Object.entries(preview.assets).map(([id, asset]) => [

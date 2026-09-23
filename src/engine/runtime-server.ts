@@ -5,6 +5,8 @@ import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
 import { buildRuntime } from './runtime-build.js';
 import {
+  createRuntimeVideoManifest,
+  VIDEO_CHUNK_SIZE,
   createRuntimePreviewToken,
   parseRuntimeOrigins,
   serveRuntimeDocument,
@@ -67,6 +69,22 @@ export async function createLocalRuntimeServer(
     origin = '';
   const store = {
     async get(key: string) {
+      const mediaMatch =
+        /^runtime\/packages\/([a-f0-9]{64})\/media\/([a-f0-9]{64})\/(\d+)\.bin$/.exec(key);
+      if (mediaMatch) {
+        const asset = Object.values(snapshots.get(mediaMatch[1])?.assets ?? {}).find(
+          (value) => value.sha256 === mediaMatch[2],
+        );
+        if (!asset || asset.contentType !== 'video/mp4') return null;
+        const index = Number(mediaMatch[3]);
+        const bytes = asset.bytes.subarray(
+          index * VIDEO_CHUNK_SIZE,
+          (index + 1) * VIDEO_CHUNK_SIZE,
+        );
+        return bytes.length
+          ? { size: bytes.length, arrayBuffer: async () => arrayBuffer(bytes) }
+          : null;
+      }
       const match = /^runtime\/packages\/([a-f0-9]{64})\/document\.json$/.exec(key);
       const item = match && snapshots.get(match[1]);
       // Local drafts never acquire a publication marker.
@@ -123,18 +141,49 @@ export async function createLocalRuntimeServer(
           request.method === 'HEAD',
         );
       }
-      const result = await serveRuntimeDocument(new Request(url, { method: request.method }), {
-        store,
-        parentOrigins: [parentOrigin],
-        previewSecret: secret,
-      });
-      respond(
-        response,
-        result.status,
-        Buffer.from(await result.arrayBuffer()),
-        Object.fromEntries(result.headers),
-        request.method === 'HEAD',
+      const result = await serveRuntimeDocument(
+        new Request(url, {
+          method: request.method,
+          headers: request.headers.range ? { Range: request.headers.range } : {},
+        }),
+        {
+          store,
+          parentOrigins: [parentOrigin],
+          previewSecret: secret,
+        },
       );
+      response.writeHead(result.status, Object.fromEntries(result.headers));
+      if (!result.body || request.method === 'HEAD') {
+        response.end();
+        return;
+      }
+      const reader = result.body.getReader();
+      const cancel = () => {
+        void reader.cancel().catch(() => undefined);
+      };
+      response.once('close', cancel);
+      try {
+        while (!response.destroyed) {
+          const part = await reader.read();
+          if (part.done) break;
+          if (!response.write(Buffer.from(part.value))) {
+            await new Promise<void>((resolve) => {
+              const done = () => {
+                response.off('drain', done);
+                response.off('close', done);
+                resolve();
+              };
+              response.once('drain', done);
+              response.once('close', done);
+            });
+          }
+        }
+        response.end();
+      } finally {
+        response.off('close', cancel);
+        await reader.cancel().catch(() => undefined);
+        reader.releaseLock();
+      }
     })().catch(() => {
       if (!response.headersSent) respond(response, 500, 'Preview unavailable');
       else response.destroy();
@@ -173,8 +222,16 @@ export async function createLocalRuntimeServer(
         ];
       }),
     );
+    const media: Record<string, Awaited<ReturnType<typeof createRuntimeVideoManifest>>> = {};
+    if (bundle.submission.config.progressiveVideo === true) {
+      for (const [id, asset] of Object.entries(assets)) {
+        if (asset.contentType === 'video/mp4')
+          media[id] = await createRuntimeVideoManifest(asset.bytes);
+      }
+    }
     const document = Buffer.from(
       JSON.stringify({
+        ...(Object.keys(media).length ? { media } : {}),
         script: bundle.files['runtime/entry.js'].toString('utf8'),
         video: bundle.submission.capabilities.includes('video'),
         ...(bundle.files['runtime/style.css']

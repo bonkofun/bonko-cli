@@ -248,3 +248,21 @@ Admission additionally accepts stable CLI 0.3.x with exact SDK implementation
 0.3.0 and manifest SDK contract 0.2.0 or 0.3.0. Old CLI 0.2.4/SDK 0.2.4 packages
 retain their existing contract. Cinematic uploads require the new coordinated
 Admin, main-site and isolated runtime deployment before publication.
+
+## Progressive video (local 0.3.1 candidate)
+
+Set `config.progressiveVideo: true` only when using SDK implementation 0.3.1
+and coordinated CLI, Admin, host and gateway consumers. The manifest contract
+remains 0.3.0. Package silent H.264 MP4 with Fast Start; the source continues to
+use `runtime.asset(id)`. The platform stores immutable 256 KiB chunks with hashes
+and authorizes/validates each requested range. No arbitrary media URLs enter the
+sandbox. Existing packages without this flag retain verified Blob delivery.
+
+For a single-action cover, `test.json` can additionally set `coverActivation: true`.
+The checker clicks near its top-left corner, verifies opening, and checks native
+gateway video playback for progressive packages. Keyboard completion remains a
+separate check. Manually review other cover regions, touch and slow-network audio.
+
+The current branch vendors an unpublished SDK candidate to keep local builds
+reproducible. Replace it with the reviewed public SDK version before releasing
+consumers. Local checks do not imply publication or deployment.
