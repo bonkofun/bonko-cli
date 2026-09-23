@@ -125,3 +125,12 @@ SDK/runtime behavior or packaging:
 No CLI upgrade, skills update, check or pack automatically commits, uploads,
 publishes, changes a production policy, deploys the main site or migrates old Bonks.
 Those actions require their own user authorization.
+
+## Cinematic 0.3.0 candidate
+
+The local implementation additionally admits CLI 0.3.x with SDK package 0.3.0,
+protocol 3 and manifest SDK contract 0.2.0 or 0.3.0. Existing 0.2.4 packages retain
+the preceding admission policy. Opt-in video and longer audio require contract
+0.3.0. Candidate consumer branches use a checked-in SDK archive; this does not
+mean that npm or production has been updated. Template versions still increase
+independently and published versions remain immutable.

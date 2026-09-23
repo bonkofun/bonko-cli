@@ -1,6 +1,6 @@
 # Bonko standalone template protocol v3
 
-This protocol is shared by developers and authoring skills. Validation and playback use the distributed `@bonko/template-sdk` package exclusively. The installed SDK package is pinned to **0.2.4**, while the v3 manifest requires **`sdkVersion: "0.2.0"`**. The first is the implementation package release; the second identifies the runtime contract and is checked for exact equality, not a minimum compatible version. The CLI generates this field. Do not change it to `0.2.4`, copy SDK internals into Studio, or change validators to make a template pass.
+This protocol is shared by developers and authoring skills. The SDK implementation is the coordinated **0.3.0 candidate**. Protocol 3 accepts manifest SDK contract **0.2.0** for existing templates and opt-in **0.3.0** for cinematic media. Package and contract versions are different identifiers; do not copy SDK internals into Studio or bypass validation. Consumers currently pin the same local SDK archive pending release.
 
 This document describes implemented interfaces and remaining review requirements; it does not authorize production publication. Studio accepts standalone v3 templates only, without legacy authoring or dual-package delivery.
 
@@ -77,9 +77,9 @@ Source builds locally only. The platform does not install, build or execute uplo
 
 ## 3. Asset resolution and limits
 
-Use flat paths of the form `assets/<name>.<ext>`, with only letters, digits, underscores and hyphens in filenames. Images support PNG/JPEG/WebP/AVIF; audio supports MP3/OGG. Video, font packages, SVG and animated images are not accepted. Use system fonts and avoid external requests.
+Use flat paths of the form `assets/<name>.<ext>`, with only letters, digits, underscores and hyphens in filenames. Images support PNG/JPEG/WebP/AVIF; audio supports MP3/OGG. Contract 0.3.0 also accepts silent H.264 MP4 with `video` capability and `kind: "video"`. Contract 0.2.0 rejects video. Font packages, SVG and animated images are not accepted. Use system fonts and avoid external requests.
 
-The SDK's shared LIMITS define budgets: 10 MiB compressed, 25 MiB expanded, at most 128 files; image maximum edge 4096 pixels and maximum area 16,777,216 pixels; audio at most 10 seconds. Source scanning also has file-count and byte limits. Fixtures are excluded from delivery but are not unlimited storage.
+The SDK's shared LIMITS define budgets: 10 MiB compressed, 25 MiB expanded, at most 128 files; image maximum edge 4096 pixels and maximum area 16,777,216 pixels; audio at most 10 seconds for contract 0.2.0, or 30 seconds for 0.3.0. Cinematic video is limited to 30 seconds, 1920px maximum edge, 2,073,600 pixels and 60fps. MP4 must be self-contained, non-fragmented, and contain exactly one silent H.264 track. Source scanning also has file-count and byte limits. Fixtures are excluded from delivery but are not unlimited storage.
 
 Resolve images with `runtime.asset("logical-id")`. Play audio with `runtime.audio.play("logical-id")` instead of handling audio URLs yourself. The host resolves and validates local, draft or published assets. Do not substitute CDN strings in source or store storage URLs in configuration. Undeclared assets are not exported.
 
@@ -234,3 +234,17 @@ Starting with CLI 0.2.4, the packer records its actual version under
 CLI >=0.2.4 and <0.3.0 plus SDK implementation 0.2.4. Runtime identifiers remain
 protocol 3 and sdkVersion 0.2.0. Existing projects must be checked and repackaged;
 updating skills alone does not certify a package.
+
+## Cinematic playback
+
+Use `runtime.asset(videoId)` on a muted `playsInline` video. Keep sound in a
+separate audio asset and call `runtime.audio.sync?.(audioId, positionMs)` with its
+current clock. The host owns sound permission and mute. Stop audio and report
+waiting during buffering; report running and resynchronize when playback resumes.
+Pause video and timers when the host pauses; dispose all media on teardown. Supply
+a complete static presentation for preview, skip and reduced motion.
+
+Admission additionally accepts stable CLI 0.3.x with exact SDK implementation
+0.3.0 and manifest SDK contract 0.2.0 or 0.3.0. Old CLI 0.2.4/SDK 0.2.4 packages
+retain their existing contract. Cinematic uploads require the new coordinated
+Admin, main-site and isolated runtime deployment before publication.

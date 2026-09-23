@@ -18,6 +18,7 @@ const mimeTypes: Record<string, string> = {
   avif: 'image/avif',
   mp3: 'audio/mpeg',
   ogg: 'audio/ogg',
+  mp4: 'video/mp4',
 };
 const arrayBuffer = (bytes: Buffer) => Uint8Array.from(bytes).buffer;
 
@@ -175,6 +176,7 @@ export async function createLocalRuntimeServer(
     const document = Buffer.from(
       JSON.stringify({
         script: bundle.files['runtime/entry.js'].toString('utf8'),
+        video: bundle.submission.capabilities.includes('video'),
         ...(bundle.files['runtime/style.css']
           ? { stylesheet: bundle.files['runtime/style.css'].toString('utf8') }
           : {}),
