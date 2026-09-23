@@ -1,6 +1,6 @@
 # Bonko standalone template protocol v3
 
-This protocol is shared by developers and authoring skills. The SDK implementation is the coordinated **0.3.0 candidate**. Protocol 3 accepts manifest SDK contract **0.2.0** for existing templates and opt-in **0.3.0** for cinematic media. Package and contract versions are different identifiers; do not copy SDK internals into Studio or bypass validation. Consumers currently pin the same local SDK archive pending release.
+This protocol is shared by developers and authoring skills. The SDK implementation is the coordinated **0.3.0**. Protocol 3 accepts manifest SDK contract **0.2.0** for existing templates and opt-in **0.3.0** for cinematic media. Package and contract versions are different identifiers; do not copy SDK internals into Studio or bypass validation. Consumers pin the exact public SDK package version 0.3.0.
 
 This document describes implemented interfaces and remaining review requirements; it does not authorize production publication. Studio accepts standalone v3 templates only, without legacy authoring or dual-package delivery.
 
@@ -230,9 +230,9 @@ Local uploaded photos have optional 0–80-character descriptions. Studio retain
 
 See [Template version and compatibility policy](TEMPLATE_VERSIONING.md).
 Starting with CLI 0.2.4, the packer records its actual version under
-`@bonkofun/cli` in `source/dependencies.json`. New Admin uploads require a stable
-CLI >=0.2.4 and <0.3.0 plus SDK implementation 0.2.4. Runtime identifiers remain
-protocol 3 and sdkVersion 0.2.0. Existing projects must be checked and repackaged;
+`@bonkofun/cli` in `source/dependencies.json`. New Admin uploads accept stable CLI 0.3.x with SDK implementation 0.3.0 and
+contract 0.2.0 or 0.3.0, alongside retained CLI >=0.2.4 and <0.3.0 with SDK
+implementation 0.2.4 and contract 0.2.0. Protocol remains 3. Existing projects must be checked and repackaged;
 updating skills alone does not certify a package.
 
 ## Cinematic playback

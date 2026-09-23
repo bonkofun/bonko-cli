@@ -7,12 +7,9 @@
     "": {
       "name": "@bonkofun/cli",
       "version": "0.3.0",
-      "bundleDependencies": [
-        "@bonko/template-sdk"
-      ],
       "license": "MIT",
       "dependencies": {
-        "@bonko/template-sdk": "file:vendor/bonko-template-sdk-0.3.0.tgz",
+        "@bonko/template-sdk": "0.3.0",
         "@playwright/test": "1.63.0",
         "@types/node": "22.13.0",
         "@types/react": "19.2.18",
@@ -48,9 +45,8 @@
     },
     "node_modules/@bonko/template-sdk": {
       "version": "0.3.0",
-      "resolved": "file:vendor/bonko-template-sdk-0.3.0.tgz",
-      "integrity": "sha512-guqJTvdgC4/MT9/IB5KAaPgT7abBpVKSlqgAgSzlZLvmMi0a6HaHnMrfa0b1CMI4aWP/jl12NY2jNCrGbooWjg==",
-      "inBundle": true,
+      "resolved": "https://registry.npmjs.org/@bonko/template-sdk/-/template-sdk-0.3.0.tgz",
+      "integrity": "sha512-4bYQbszIMMKGk3XAPdnhwRzfHVaTPwO9TbyK6VaXTnOQWy/MPaoQOilqJWAqXnYINZjFYF6f+ON73f1jB66UdA==",
       "license": "MIT",
       "engines": {
         "node": ">=22.12.0"
@@ -3500,7 +3496,6 @@
       "version": "13.2.0",
       "resolved": "https://registry.npmjs.org/framer-motion/-/framer-motion-13.2.0.tgz",
       "integrity": "sha512-9E33ebgMaO33w1nN/jEdW8z3/GO483fMi4rqbMG9rt83XgW9QLKRe4NcmJ8s+fQ3O34++UHrIQwlIWGIWTITjA==",
-      "inBundle": true,
       "license": "MIT",
       "dependencies": {
         "motion-dom": "^13.2.0",
@@ -4058,7 +4053,6 @@
       "version": "13.1.1",
       "resolved": "https://registry.npmjs.org/motion/-/motion-13.1.1.tgz",
       "integrity": "sha512-WNZoK6xiF+kkTqkZ5K7FDDh6A8BG4i5Hc7KXtW8gtTxkpJFds+hIOrDaQGKjQj/AE/i4hJqAaUHEqp/Qo02y6Q==",
-      "inBundle": true,
       "license": "MIT",
       "dependencies": {
         "framer-motion": "^13.1.1",
@@ -4081,7 +4075,6 @@
       "version": "13.2.0",
       "resolved": "https://registry.npmjs.org/motion-dom/-/motion-dom-13.2.0.tgz",
       "integrity": "sha512-N6gdSoWRDk0Rh/fVtlqUtLs+fEN3ELFZI3cn3IQE9Mnf3E+Mh8wjO6MstzCOPFh4Yf0L1as5m2eUyYWj8ylVSQ==",
-      "inBundle": true,
       "license": "MIT",
       "dependencies": {
         "motion-utils": "^13.0.0"
@@ -4091,7 +4084,6 @@
       "version": "13.0.0",
       "resolved": "https://registry.npmjs.org/motion-utils/-/motion-utils-13.0.0.tgz",
       "integrity": "sha512-7DnN7TmbLcYXcG4RVadXIihWlyuM9afoUww8Y5Agg431kGKiuL2/OMyP4mJ5wLz+pvN3t5ySClLOaVXJ+wekRQ==",
-      "inBundle": true,
       "license": "MIT"
     },
     "node_modules/ms": {
@@ -4400,7 +4392,6 @@
       "version": "19.2.8",
       "resolved": "https://registry.npmjs.org/react/-/react-19.2.8.tgz",
       "integrity": "sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==",
-      "inBundle": true,
       "license": "MIT",
       "engines": {
         "node": ">=0.10.0"
@@ -4410,7 +4401,6 @@
       "version": "19.2.8",
       "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-19.2.8.tgz",
       "integrity": "sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==",
-      "inBundle": true,
       "license": "MIT",
       "dependencies": {
         "scheduler": "^0.27.0"
@@ -4548,7 +4538,6 @@
       "version": "0.27.0",
       "resolved": "https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz",
       "integrity": "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==",
-      "inBundle": true,
       "license": "MIT"
     },
     "node_modules/semver": {
@@ -4687,7 +4676,6 @@
       "version": "2.8.1",
       "resolved": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
       "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==",
-      "inBundle": true,
       "license": "0BSD"
     },
     "node_modules/tw-animate-css": {

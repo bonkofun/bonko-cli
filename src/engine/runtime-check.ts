@@ -60,11 +60,11 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         );
     });
     const origin = server.origin;
-    const metadataResponse = page.waitForResponse(
-      (response) => new URL(response.url()).pathname === '/__bonko/preview',
-    );
-    await page.goto(origin);
-    const metadata = (await (await metadataResponse).json()) as RuntimePreview;
+    // Read the body when it arrives, before a Studio reload can discard it.
+    const metadataResponse = page
+      .waitForResponse((response) => new URL(response.url()).pathname === '/__bonko/preview')
+      .then((response) => response.json() as Promise<RuntimePreview>);
+    const [, metadata] = await Promise.all([page.goto(origin), metadataResponse]);
     if (metadata.digest !== bundle.digest)
       throw new RuntimeBuildError(
         'SOURCE_CHANGED',
