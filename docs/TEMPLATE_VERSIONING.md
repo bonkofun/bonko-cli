@@ -1,7 +1,7 @@
 # Bonko template version and compatibility policy
 
-Status: implemented locally for CLI 0.2.4 and the corresponding Admin admission change;
-not published or deployed. Updated 2026-09-10.
+Compatibility policy for CLI 0.3.0 and the coordinated Admin implementation.
+Package publication and consumer deployment remain separate operations.
 
 ## Version identities
 
@@ -12,8 +12,8 @@ not published or deployed. Updated 2026-09-10.
 | Packing CLI              | source/dependencies.json: @bonkofun/cli       | Generated from the CLI actually building the archive, including builds of older projects. Never copy the creating CLI pin or allow an author-supplied override.                 |
 | Creating CLI             | bonko.json: cliVersion                        | Historical local project metadata only. Updating skills or switching CLI does not rewrite it or prove upload compatibility. It is not the packing version.                      |
 | Archive/runtime protocol | bundle.json: format; manifest.json: protocol  | Exactly 3. The SDK validates the archive inventory and runtime contract. A higher number is not automatically supported.                                                        |
-| Runtime SDK contract     | manifest.json: sdkVersion                     | Exactly 0.2.0. This is a runtime contract identifier, not the installed npm version.                                                                                            |
-| SDK implementation       | source/dependencies.json: @bonko/template-sdk | Exactly 0.2.4 in this reviewed compatibility set. A different implementation needs explicit consumer review and tests.                                                          |
+| Runtime SDK contract     | manifest.json: sdkVersion                     | 0.2.0 or opt-in cinematic 0.3.0. This is a runtime contract identifier, not the installed npm version.                                                                          |
+| SDK implementation       | source/dependencies.json: @bonko/template-sdk | Exactly 0.3.0 for CLI 0.3.x; 0.2.4 for retained CLI 0.2.x. A different implementation needs explicit consumer review and tests.                                                 |
 
 Do not use a template's content version as the CLI compatibility floor. A new
 template at 1.0 can be valid; an old template at 50.0 can still use an incompatible
@@ -23,16 +23,15 @@ the v3 wire format, allowed runtime imports or the SDK parser.
 
 ## Current new-upload admission
 
-The server accepts stable packing CLI versions **>=0.2.4 and <0.3.0**, together
-with SDK implementation **0.2.4**, runtime protocol **3** and SDK contract
-**0.2.0**. Numeric components are compared numerically, not lexicographically.
+The server accepts stable CLI **0.3.x** with exact SDK implementation **0.3.0**,
+protocol **3**, and SDK contract **0.2.0** or **0.3.0**. It also retains CLI
+**>=0.2.4 and <0.3.0** with SDK **0.2.4** and contract **0.2.0**. Numeric components are compared numerically, not lexicographically.
 Missing builder metadata, older versions, prereleases, malformed numbers,
 unsupported future minor/major lines and unreviewed SDK implementations fail closed.
 
-The executable admission policy lives in the main site's
-src/features/admin/template-upload-policy.ts. This document is maintained in
-both the CLI and main-site repositories as docs/TEMPLATE_VERSIONING.md; changes
-must update both copies and their tests in the same coordinated batch.
+The executable admission policy lives in bonko-admin at
+`src/features/templates/template-upload-policy.ts`. Coordinate SDK, CLI, Admin,
+main-site host and runtime compatibility changes and their tests together.
 
 The CLI 0.2.x patch line must retain this contract. A breaking authoring/runtime
 change cannot be released as an implicitly compatible patch. It requires a
@@ -125,3 +124,11 @@ SDK/runtime behavior or packaging:
 No CLI upgrade, skills update, check or pack automatically commits, uploads,
 publishes, changes a production policy, deploys the main site or migrates old Bonks.
 Those actions require their own user authorization.
+
+## Cinematic 0.3.0
+
+The local implementation additionally admits CLI 0.3.x with SDK package 0.3.0,
+protocol 3 and manifest SDK contract 0.2.0 or 0.3.0. Existing 0.2.4 packages retain
+the preceding admission policy. Opt-in video and longer audio require contract
+0.3.0. Consumers use the exact public SDK package version; installing it does not deploy production. Template versions still increase
+independently and published versions remain immutable.

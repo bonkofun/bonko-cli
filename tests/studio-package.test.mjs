@@ -139,7 +139,7 @@ test(
         inspectRuntimeBundle(downloaded).dependencies['@bonkofun/cli'],
         packageInfo.version,
       );
-      assert.equal(inspectRuntimeBundle(downloaded).dependencies['@bonko/template-sdk'], '0.2.4');
+      assert.equal(inspectRuntimeBundle(downloaded).dependencies['@bonko/template-sdk'], '0.3.0');
       await page.setViewportSize({ width: 390, height: 844 });
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

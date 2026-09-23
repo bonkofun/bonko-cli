@@ -60,11 +60,11 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
         );
     });
     const origin = server.origin;
-    const metadataResponse = page.waitForResponse(
-      (response) => new URL(response.url()).pathname === '/__bonko/preview',
-    );
-    await page.goto(origin);
-    const metadata = (await (await metadataResponse).json()) as RuntimePreview;
+    // Read the body when it arrives, before a Studio reload can discard it.
+    const metadataResponse = page
+      .waitForResponse((response) => new URL(response.url()).pathname === '/__bonko/preview')
+      .then((response) => response.json() as Promise<RuntimePreview>);
+    const [, metadata] = await Promise.all([page.goto(origin), metadataResponse]);
     if (metadata.digest !== bundle.digest)
       throw new RuntimeBuildError(
         'SOURCE_CHANGED',
@@ -87,14 +87,15 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
     await expect(status).toHaveText(/^(running|waiting|natural)$/);
     for (const asset of Object.values(metadata.assets)) {
       await page.evaluate(
-        async ({ asset, limits }) => {
+        async ({ asset, limits, cinematic }) => {
           const response = await fetch(asset.url);
           if (!response.ok) throw new Error('Asset fetch failed');
           const blob = await response.blob(),
             url = URL.createObjectURL(blob);
           try {
-            if (asset.contentType.startsWith('audio/')) {
-              const audio = new Audio();
+            if (asset.contentType.startsWith('audio/') || asset.contentType === 'video/mp4') {
+              const video = asset.contentType === 'video/mp4';
+              const audio = video ? document.createElement('video') : new Audio();
               audio.preload = 'metadata';
               try {
                 await new Promise<void>((resolve, reject) => {
@@ -107,7 +108,13 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
                     if (
                       Number.isFinite(audio.duration) &&
                       audio.duration > 0 &&
-                      audio.duration <= limits.audioSeconds
+                      audio.duration <=
+                        (cinematic ? limits.cinematicSeconds : limits.audioSeconds) &&
+                      (!(audio instanceof HTMLVideoElement) ||
+                        (audio.videoWidth > 0 &&
+                          audio.videoWidth <= limits.videoDimension &&
+                          audio.videoHeight <= limits.videoDimension &&
+                          audio.videoWidth * audio.videoHeight <= limits.videoPixels))
                     )
                       resolve();
                     else reject(new Error('Audio exceeds short-clip limit'));
@@ -138,7 +145,7 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
             URL.revokeObjectURL(url);
           }
         },
-        { asset, limits: LIMITS },
+        { asset, limits: LIMITS, cinematic: bundle.submission.sdkVersion === '0.3.0' },
       );
     }
     checks.push('actual-media-decode');
