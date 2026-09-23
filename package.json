@@ -1,6 +1,6 @@
 {
   "name": "@bonkofun/cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Local Bonko template creation, preview, build and verification CLI",
   "type": "module",
   "private": true,
@@ -22,7 +22,8 @@
     "npm-shrinkwrap.json",
     "LICENSE",
     "scripts/install.mjs",
-    "scripts/upgrade-install.mjs"
+    "scripts/upgrade-install.mjs",
+    "vendor"
   ],
   "scripts": {
     "build": "node scripts/build-cli.mjs && node scripts/build-studio.mjs",
@@ -36,7 +37,7 @@
     "verify": "npm run format:check && npm run lint && npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "@bonko/template-sdk": "0.3.0",
+    "@bonko/template-sdk": "file:vendor/bonko-template-sdk-0.3.1.tgz",
     "@playwright/test": "1.63.0",
     "@types/node": "22.13.0",
     "@types/react": "19.2.18",
@@ -71,5 +72,8 @@
     "tailwindcss": "4.3.3",
     "tw-animate-css": "1.4.0",
     "typescript-eslint": "8.69.0"
-  }
+  },
+  "bundledDependencies": [
+    "@bonko/template-sdk"
+  ]
 }

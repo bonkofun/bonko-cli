@@ -149,6 +149,44 @@ export async function verifyStandalone(root: string, slug: string, toolRoot: str
       );
     }
     checks.push('actual-media-decode');
+    if (scenario.coverActivation === true && interactive) {
+      const reveal = frame.getByRole('button', { name: scenario.revealButton, exact: true });
+      const coversOpening = await reveal.evaluate((node) => {
+        const target = node.getBoundingClientRect();
+        const opening = node.parentElement?.getBoundingClientRect();
+        return (
+          !!opening &&
+          opening.width > 0 &&
+          opening.height > 0 &&
+          target.left <= opening.left + 1 &&
+          target.top <= opening.top + 1 &&
+          target.right >= opening.right - 1 &&
+          target.bottom >= opening.bottom - 1
+        );
+      });
+      if (!coversOpening)
+        throw new RuntimeBuildError(
+          'COVER_TARGET_TOO_SMALL',
+          'The cover opening must cover the artwork',
+        );
+      await reveal.click({ position: { x: 8, y: 8 } });
+      await expect(reveal).toBeHidden();
+      if (bundle.submission.config.progressiveVideo === true) {
+        const movie = frame.locator('video').first();
+        await expect
+          .poll(() => movie.evaluate((node) => (node as HTMLVideoElement).currentTime))
+          .toBeGreaterThan(0);
+        const url = await movie.getAttribute('src');
+        if (!url || !new URL(url).pathname.startsWith(`/v3/${metadata.digest}/media/`))
+          throw new RuntimeBuildError(
+            'VIDEO_NOT_PROGRESSIVE',
+            'Expected a gateway movie, not a complete Blob',
+          );
+        checks.push('progressive-video-playback');
+      }
+      checks.push('full-cover-corner-activation');
+    }
+
     // Distinct local-only photo makes hardcoded template art insufficient to pass.
     const photo = await page.evaluate(() => {
       const canvas = document.createElement('canvas');

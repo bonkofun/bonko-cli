@@ -15,6 +15,12 @@ Read the project's [DEVELOPMENT.md](../../../DEVELOPMENT.md), then inspect `mani
 4. **Use supported imports and SDK patterns**: Rely on supported imports listed in DEVELOPMENT.md (`react`, `react-dom/client`, `motion/react`). Reuse the generated SDK connection and lifecycle patterns. Add focused modules inside `src/` when useful (e.g. particle canvas confetti); do not install external UI component libraries or copy Studio components.
 5. **Declare actual assets & record provenance**: Declare all assets and capabilities (`audio`, `canvas`) in `manifest.json`. Resolve asset IDs exclusively through the SDK, use SDK-managed audio, and record all media sources and licenses in `LICENSE.md`.
 
+## Single-action opening covers
+
+When a cover has one opening action, make the entire artwork area a single semantic button. The visible “Open” hint may stay small, but tapping the title, envelope, background or empty area must activate the same reveal exactly once. An inset transparent button with a positioned text label preserves the artwork and native Tab/Enter/Space behavior. Keep a visible focus ring; remove the hit target after opening. Exclude any separate controls and preserve native scrolling. Do not apply this cover rule to the final message, photo editor or multiple-action screens.
+
+For cinematic packages, use silent H.264 MP4 with yuv420p and Fast Start. Compare dark gradients and highlights after compression. SDK implementation 0.3.1 adds opt-in `config.progressiveVideo: true`: the compatible host and gateway deliver verified chunks without waiting for the complete movie. Continue resolving the asset by logical ID; never embed remote URLs. Coordinate consumer rollout before publication. Pause soundtrack synchronization while video buffers and resume from the actual video clock.
+
 ## High-emotion visual hierarchy & multi-layer composition
 
 To achieve the exquisite visual finish expected of premium greeting templates, organize the scene into a structured 5-layer presentation:
